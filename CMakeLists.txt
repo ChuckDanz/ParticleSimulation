@@ -1,11 +1,17 @@
-cmake_minimum_required(VERSION 3.15)
-project(particlesim)
+cmake_minimum_required(VERSION 3.28)
+project(CMakeSFMLProject LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(SFML COMPONENTS Network Graphics Window Audio System CONFIG REQUIRED) #find these components from sfml or throw error
+include(FetchContent)
+FetchContent_Declare(SFML
+    GIT_REPOSITORY https://github.com/SFML/SFML.git
+    GIT_TAG 3.0.2
+    GIT_SHALLOW ON
+    EXCLUDE_FROM_ALL
+    SYSTEM)
+FetchContent_MakeAvailable(SFML)
 
-add_executable(particlesim main.cpp particle.cpp Vec2.cpp)
-
-target_link_libraries(particlesim PRIVATE SFML::Network SFML::Graphics SFML::Window SFML::Audio SFML::System)
-
+add_executable(main main.cpp particle.cpp solver.cpp Vec2.cpp renderer.hpp)
+target_compile_features(main PRIVATE cxx_std_17)
+target_link_libraries(main PRIVATE SFML::Graphics)

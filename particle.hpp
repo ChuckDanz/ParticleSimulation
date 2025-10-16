@@ -8,22 +8,28 @@
 class Particle
 {
 private:
-    Vec2 position; //displacement vector
-    Vec2 velocity;
-    Vec2 acceleration;
+    Vec2 m_position_last;
+    Vec2 m_acceleration;
 
-    float mass;
-    float radius;
-    std::string color;
+    float m_mass;
+   
+    std::string m_color;
 
 public:
+
+    Vec2 m_position; //displacement vector
+    float m_radius;
+
     Particle();
-    Particle(float pos_x, float pos_y, float mass, float radius, std::string color);
-    Particle(float pos_x, float pos_y, Vec2 velocity);
+    Particle(const Vec2& p_position, float p_radius);
 
-    Vec2 apply_force(const Vec2& force);
+    void accelerate(const Vec2& p_acceleration);
 
-    Vec2 onClick(); //this will be on hold and release of particle : calculates velocity
+    void setVelocity(const Vec2& p_velocity, float dt);
+
+    void addVelocity(const Vec2& p_velocity, float dt);
+
+    Vec2 getVelocity();
 
     void update(float dt);
 

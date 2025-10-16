@@ -3,7 +3,8 @@
         {
             "name": "Win32",
             "includePath": [
-                "${default}"
+                "${default}",
+                "C:\\SFML-3.0.2-windows-gcc-14.2.0-mingw-64-bit\\SFML-3.0.2\\include"
             ],
             "defines": [
                 "_DEBUG",
@@ -13,7 +14,7 @@
             "windowsSdkVersion": "10.0.22000.0",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "windows-msvc-x64",
+            "intelliSenseMode": "gcc-x64",
             "compilerPath": "C:/mingw64/bin/gcc.exe"
         }
     ],
