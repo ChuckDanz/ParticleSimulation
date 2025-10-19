@@ -18,7 +18,7 @@ private:
 public:
 
     Vec2 m_position; //displacement vector
-    float m_radius;
+    float m_radius = 1.0f;
 
     Particle();
     Particle(const Vec2& p_position, float p_radius);

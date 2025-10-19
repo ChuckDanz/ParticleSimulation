@@ -21,12 +21,15 @@ struct Vec2
     Vec2& operator-=(const Vec2& other_vector);
 
     Vec2 operator*(const float scalar) const;
+    friend Vec2 operator*(float scalar, const Vec2& vector);
 
     Vec2 operator/(const float scalar) const;
 
     float dot(const Vec2& other_vector) const;
 
     float magnitude() const;
+
+    Vec2 normalize() const;
 };
     
 
