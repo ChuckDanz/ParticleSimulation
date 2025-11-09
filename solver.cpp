@@ -11,7 +11,8 @@ void Solver::update()
     for (int i = 0; i < substeps; i++)
     {    
         applyGravity();
-        applyBoundary();   
+        applyBoundary(); 
+        checkCollisions();  
         updateObjects(substep_dt);  
     }
 }
@@ -33,6 +34,7 @@ const std::vector<Particle>& Solver::getObjects() const
     return objects;
 }
 
+//for circle boundary
 void Solver::applyBoundary()
 {
     for (auto &particle : objects)
@@ -91,5 +93,38 @@ void Solver::mousePush(const Vec2& position)
         Vec2 dir = position - particle.m_position;
         float distance = sqrt(dir.x * dir.x + dir.y * dir.y);
         particle.accelerate(dir * std::min(0.0f, -10 * (120 - distance)));
+    }
+}
+
+
+void Solver::setObjectVelocity(Particle& particle, Vec2 v)
+{   
+    particle.setVelocity(v, 1.0f);
+}
+
+void Solver::checkCollisions()
+{
+    int num_objects = objects.size();
+    for (int i = 0; i < num_objects; i++) 
+    {
+        Particle& p_1 = objects[i];
+        for (int j = 0; j < num_objects; j++)
+        {
+            if (i == j) continue;
+            Particle& p_2 = objects[j];
+            Vec2 v = p_1.m_position - p_2.m_position;
+            float distance = sqrt(v.x * v.x + v.y * v.y);
+            float min_distance = p_1.m_radius + p_2.m_radius;
+            if (distance < min_distance)
+            {
+                Vec2 n = v / distance;
+                float total_mass = p_1.m_radius * p_1.m_radius + p_2.m_radius * p_2.m_radius;
+                float mass_ratio = (p_1.m_radius *  p_2.m_radius) / total_mass;
+                float delta = 0.5f * (min_distance - distance);
+
+                p_1.m_position += n * (1 - mass_ratio) * delta;
+                p_2.m_position -= n * mass_ratio * delta;
+            }
+        }
     }
 }

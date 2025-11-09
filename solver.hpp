@@ -46,6 +46,11 @@ public:
 
     void mousePush(const Vec2& position);
 
+    void setObjectVelocity(Particle& particle, Vec2 v);
+
+    void checkCollisions();
+    
+
 
 };
 

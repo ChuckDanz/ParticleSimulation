@@ -37,3 +37,13 @@ Vec2 Particle::getVelocity()
     return m_position - m_position_last;
 }
 
+void Particle::setColor(sf::Color color)
+{
+    m_color = color;
+}
+
+sf::Color Particle::getColor() const
+{
+    return m_color;
+}
+

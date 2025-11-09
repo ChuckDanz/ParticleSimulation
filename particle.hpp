@@ -3,6 +3,7 @@
 
 #include "Vec2.hpp"
 #include <iostream>
+#include <SFML/Graphics.hpp>
 
 
 class Particle
@@ -13,7 +14,7 @@ private:
 
     float m_mass;
    
-    std::string m_color;
+    sf::Color m_color;
 
 public:
 
@@ -32,6 +33,10 @@ public:
     Vec2 getVelocity();
 
     void update(float dt);
+
+    void setColor(sf::Color color);
+
+    sf::Color getColor() const;
 
 
 };

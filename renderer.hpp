@@ -5,6 +5,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 
+
 inline void render(sf::RenderTarget& target, Solver& solver) 
 {
     const auto& objects = solver.getObjects();
@@ -14,10 +15,11 @@ inline void render(sf::RenderTarget& target, Solver& solver)
         circle.setPointCount(32);
         circle.setOrigin(sf::Vector2f(particle.m_radius, particle.m_radius));
         circle.setPosition(sf::Vector2f(particle.m_position.x, particle.m_position.y));
-        circle.setFillColor(sf::Color::Red);
+        circle.setFillColor(particle.getColor());
         target.draw(circle);
     }
 };
+
 
 
 #endif

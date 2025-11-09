@@ -1,14 +1,35 @@
 #include <SFML/Window.hpp>
+#include <SFML/System/Clock.hpp>
 #include "renderer.hpp"
+
+static sf::Color getColor(float t)
+{
+    const float r = sin(t);
+    const float g = sin(t + 0.33f * 2.0f * M_PI);
+    const float b = sin(t + 0.66f * 2.0f * M_PI);
+    return {static_cast<uint8_t>(255.0f * r * r),
+            static_cast<uint8_t>(255.0f * g * g),
+            static_cast<uint8_t>(255.0f * b * b)};
+}
 
 int main()
 {
 
+    float max_angle = 120.0f * M_PI / 180.0f;
+
+    constexpr float spawn_velocity = 0.5f;
+
     constexpr uint32_t window_width = 800;
     constexpr uint32_t window_height = 600;
 
+    constexpr uint32_t max_objects = 100;
+    constexpr float spawn_delay = 0.1f;
+
 
     sf::RenderWindow window(sf::VideoMode({window_width, window_height}), "My window");
+
+    sf::Clock globalClock;
+    sf::Clock clock;
 
 
     //window.setPosition(sf::Vector2i(-1000, 1500));
@@ -30,7 +51,7 @@ int main()
     boundary_background.setPosition(sf::Vector2(boundary[0], boundary[1]));
     boundary_background.setPointCount(128);
 
-    auto& object = solver.addObject(Vec2({420.0f, 100.0f}), 10.0f);
+    //auto& object = solver.addObject(Vec2{420.0f, 100.0f}, 10.0f);
 
 
     while (window.isOpen()) // this is where we will update 
@@ -43,17 +64,30 @@ int main()
                 window.close();
         }
 
+        if (solver.getObjects().size() < max_objects && clock.getElapsedTime().asSeconds() >= spawn_delay)
+        {
+            float t = globalClock.getElapsedTime().asSeconds();
+            auto& particle = solver.addObject(Vec2{420.0f, 100.0f}, 10.0f);
+            
+            float angle = M_PI * 0.5f + max_angle * sin(3.0f * t);
+
+            particle.setColor(getColor(t));
+            
+            solver.setObjectVelocity(particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
+            clock.restart();
+        }
+
         if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
         {
             float ratio = 840.0f / window.getSize().x;
             sf::Vector2f pos = static_cast<sf::Vector2f>(sf::Mouse::getPosition(window)) * ratio;
-            solver.mousePull(Vec2(pos.x, pos.y));
+            solver.mousePull(Vec2{pos.x, pos.y});
         }
         if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
         {
             float ratio = 840.0f / window.getSize().x;
             sf::Vector2f pos = static_cast<sf::Vector2f>(sf::Mouse::getPosition(window)) * ratio;
-            solver.mousePush(Vec2(pos.x, pos.y));
+            solver.mousePush(Vec2{pos.x, pos.y});
         }
         solver.update();
         window.clear(sf::Color::White);
@@ -64,3 +98,4 @@ int main()
 
     return 0;
 }
+
