@@ -20,9 +20,9 @@ int main()
     constexpr float spawn_velocity = 0.5f;
 
     constexpr uint32_t window_width = 800;
-    constexpr uint32_t window_height = 600;
+    constexpr uint32_t window_height = 800;
 
-    constexpr uint32_t max_objects = 100;
+    constexpr uint32_t max_objects = 2000;
     constexpr float spawn_delay = 0.1f;
 
 
@@ -42,14 +42,15 @@ int main()
     Solver solver;
     
 
-    solver.setBoundary(Vec2{window_width / 2.0f, window_height / 2.0f}, (window_width - 250.0f) / 2.0f);
+    // circular boundary stuff
+    //solver.setBoundary(Vec2{window_width / 2.0f, window_height / 2.0f}, (window_width - 250.0f) / 2.0f);
 
-    const std::array<float, 3> boundary = solver.getBoundary();
-    sf::CircleShape boundary_background{boundary[2]};
-    boundary_background.setOrigin(sf::Vector2(boundary[2], boundary[2]));
-    boundary_background.setFillColor(sf::Color::Black);
-    boundary_background.setPosition(sf::Vector2(boundary[0], boundary[1]));
-    boundary_background.setPointCount(128);
+    // const std::array<float, 3> boundary = solver.getBoundary();
+    // sf::CircleShape boundary_background{boundary[2]};
+    // boundary_background.setOrigin(sf::Vector2(boundary[2], boundary[2]));
+    // boundary_background.setFillColor(sf::Color::Black);
+    // boundary_background.setPosition(sf::Vector2(boundary[0], boundary[1]));
+    // boundary_background.setPointCount(128);
 
     //auto& object = solver.addObject(Vec2{420.0f, 100.0f}, 10.0f);
 
@@ -91,7 +92,7 @@ int main()
         }
         solver.update();
         window.clear(sf::Color::White);
-        window.draw(boundary_background);
+        //window.draw(boundary_background);
         render(window, solver);
         window.display();
     }

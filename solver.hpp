@@ -15,6 +15,8 @@ private:
 
     static constexpr int substeps = 8; 
 
+    static constexpr float window_size = 800.0f;
+
     Vec2 boundary_center = Vec2{420.0f, 420.0f};
     float boundary_radius = 100.0f;
 
@@ -36,7 +38,11 @@ public:
 
     const std::vector<Particle>& getObjects() const;
 
+    // for a circle
     void applyBoundary();
+
+    //this is for the borders of the window
+    void applyBorder();
 
     std::array<float, 3> getBoundary() const;
 

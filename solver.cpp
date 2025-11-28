@@ -11,7 +11,8 @@ void Solver::update()
     for (int i = 0; i < substeps; i++)
     {    
         applyGravity();
-        applyBoundary(); 
+        //applyBoundary(); 
+        applyBorder();
         checkCollisions();  
         updateObjects(substep_dt);  
     }
@@ -52,6 +53,38 @@ void Solver::applyBoundary()
             particle.setVelocity(calculateBounceBack(velocity, perp), 1.0f);
             
         }
+    }
+}
+
+//for circle boundary
+void Solver::applyBorder()
+{
+    for (auto &particle : objects)
+    {
+        const float dampening = 0.75f;
+        const Vec2 pos = particle.m_position;
+
+        Vec2 npos = particle.m_position;
+        Vec2 vel = particle.getVelocity();
+        Vec2 dy = {vel.x * dampening, -vel.y};
+        Vec2 dx = {-vel.x * dampening, vel.y};
+
+        if (pos.x < particle.m_radius || pos.x + particle.m_radius > window_size) // reflect off left/right
+        {
+            if (pos.x < particle.m_radius) npos.x = particle.m_radius;
+            if (pos.x + particle.m_radius > window_size) npos.x = window_size - particle.m_radius;
+            particle.m_position = npos;
+            particle.setVelocity(dx, 1.0);
+        }
+        if (pos.y < particle.m_radius || pos.y + particle.m_radius > window_size) //reflect off top and bottom
+        {
+            if (pos.y < particle.m_radius) npos.y = particle.m_radius;
+            if (pos.y + particle.m_radius > window_size) npos.y = window_size - particle.m_radius;
+            particle.m_position = npos;
+            particle.setVelocity(dy, 1.0);
+        }
+        
+
     }
 }
 
