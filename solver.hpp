@@ -4,12 +4,16 @@
 #include <iostream>
 #include <vector>
 #include <array>
+#include <deque>
 #include "particle.hpp"
+#include "quadtree.hpp"
 
 class Solver
 {
 private:
-    std::vector<Particle> objects;
+    std::deque<Particle> objects;
+   
+
     static constexpr float dt = 1.0f / 60;
     static constexpr Vec2 gravity = Vec2(0.0f, 9.81f * 50.0f);
 
@@ -36,13 +40,15 @@ public:
 
     void update();
 
-    const std::vector<Particle>& getObjects() const;
+    const std::deque<Particle>& getObjects() const;
 
     // for a circle
     void applyBoundary();
 
     //this is for the borders of the window
     void applyBorder();
+
+    void updateTree();
 
     std::array<float, 3> getBoundary() const;
 

@@ -13,6 +13,7 @@ void Solver::update()
         applyGravity();
         //applyBoundary(); 
         applyBorder();
+        updateTree();
         checkCollisions();  
         updateObjects(substep_dt);  
     }
@@ -30,7 +31,17 @@ void Solver::updateObjects(float dt)
         particle.update(dt);
 }
 
-const std::vector<Particle>& Solver::getObjects() const
+void Solver::updateTree()
+{
+    clear(root.get());
+    initialize_root();
+    for (auto& particle : objects)
+    {
+        insert(&particle, root.get());
+    }
+}
+
+const std::deque<Particle>& Solver::getObjects() const
 {
     return objects;
 }
@@ -138,25 +149,41 @@ void Solver::setObjectVelocity(Particle& particle, Vec2 v)
 void Solver::checkCollisions()
 {
     int num_objects = objects.size();
+    //loop trhough all current paricles in simulation
     for (int i = 0; i < num_objects; i++) 
     {
-        Particle& p_1 = objects[i];
-        for (int j = 0; j < num_objects; j++)
+        Particle* p_1 = &objects[i];
+
+        //query in tree
+        Node* node = query(p_1, root.get());
+        if (!node) continue;
+
+        //loop thorugh quadtree particles
+        for (int j = 0; j < node->particles.size(); j++)
         {
-            if (i == j) continue;
-            Particle& p_2 = objects[j];
-            Vec2 v = p_1.m_position - p_2.m_position;
+            Particle* p_2 = node->particles[j];
+            
+            // Compare pointers, not indices!
+            if (p_1 == p_2) continue;
+
+            if (p_2 < p_1) continue; // avoid double checking pairs
+    
+            Vec2 v = p_1->m_position - p_2->m_position;
+
             float distance = sqrt(v.x * v.x + v.y * v.y);
-            float min_distance = p_1.m_radius + p_2.m_radius;
+            float min_distance = p_1->m_radius + p_2->m_radius;
+
             if (distance < min_distance)
             {
                 Vec2 n = v / distance;
-                float total_mass = p_1.m_radius * p_1.m_radius + p_2.m_radius * p_2.m_radius;
-                float mass_ratio = (p_1.m_radius *  p_2.m_radius) / total_mass;
+                float total_mass = p_1->m_radius * p_1->m_radius + p_2->m_radius * p_2->m_radius;
+                float mass_ratio = (p_1->m_radius *  p_2->m_radius) / total_mass;
                 float delta = 0.5f * (min_distance - distance);
 
-                p_1.m_position += n * (1 - mass_ratio) * delta;
-                p_2.m_position -= n * mass_ratio * delta;
+                p_1->m_position += n * (1 - mass_ratio) * delta;
+                p_2->m_position -= n * mass_ratio * delta;
+
+
             }
         }
     }

@@ -93,7 +93,8 @@ int main()
         solver.update();
         window.clear(sf::Color::White);
         //window.draw(boundary_background);
-        render(window, solver);
+        //render(window, solver);
+        renderWithDebug(window, solver, true); 
         window.display();
     }
 

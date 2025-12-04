@@ -12,6 +12,6 @@ FetchContent_Declare(SFML
     SYSTEM)
 FetchContent_MakeAvailable(SFML)
 
-add_executable(main main.cpp particle.cpp solver.cpp Vec2.cpp renderer.hpp)
+add_executable(main main.cpp particle.cpp solver.cpp Vec2.cpp renderer.hpp quadtree.cpp quadtree.hpp)
 target_compile_features(main PRIVATE cxx_std_17)
 target_link_libraries(main PRIVATE SFML::Graphics)

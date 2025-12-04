@@ -6,6 +6,35 @@
 #include <SFML/Window.hpp>
 
 
+
+// Draw quadtree node boundaries recursively
+inline void renderQuadtree(sf::RenderTarget& target, Node* node)
+{
+    if (!node) return;
+
+    // Draw this node's boundary as a rectangle outline
+    sf::RectangleShape rect;
+    rect.setSize(sf::Vector2f(node->half_W * 2.0f, node->half_H * 2.0f));
+    rect.setPosition(sf::Vector2f(node->x - node->half_W, node->y - node->half_H));
+    rect.setFillColor(sf::Color::Transparent);
+    rect.setOutlineColor(sf::Color::Green);
+    rect.setOutlineThickness(1.0f);
+    target.draw(rect);
+
+    // Optionally show particle count in this node
+    // (requires sf::Font setup — skip if you don't need it)
+
+    // Recurse into children
+    for (const auto& child : node->children)
+    {
+        if (child)
+        {
+            renderQuadtree(target, child.get());
+        }
+    }
+}
+
+
 inline void render(sf::RenderTarget& target, Solver& solver) 
 {
     const auto& objects = solver.getObjects();
@@ -19,6 +48,20 @@ inline void render(sf::RenderTarget& target, Solver& solver)
         target.draw(circle);
     }
 };
+
+// Combined render with debug overlay
+inline void renderWithDebug(sf::RenderTarget& target, Solver& solver, bool showQuadtree = true)
+{
+    // Draw particles first
+    render(target, solver);
+
+    // Draw quadtree overlay
+    if (showQuadtree && root)
+    {
+        renderQuadtree(target, root.get());
+    }
+}
+
 
 
 
