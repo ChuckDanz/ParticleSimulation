@@ -2,6 +2,8 @@
 
 std::unique_ptr<Node> root = nullptr;
 
+constexpr float EPS = 1e-6f;
+
 
 void initialize_root()
 {
@@ -51,8 +53,8 @@ int getChildIndex(const Particle* p, const Node* n)
 	
 	int index = 0;
 
-	if (p->m_position.x >= n->x) index += 1;
-	if (p->m_position.y >= n->y) index += 2;
+	if (p->m_position.x >= n->x - EPS) index += 1;
+	if (p->m_position.y >= n->y - EPS) index += 2;
 
 	return index;
 }
@@ -75,6 +77,16 @@ void subdivide(Node* n)
     n->children[3] = std::make_unique<Node>(n->x + hw, n->y + hh, hw, hh); // + +
 
 	
+}
+
+void clearParticles(Node* n)
+{
+    if (!n) return;
+    n->particles.clear();
+    for (auto& child : n->children)
+    {
+        if (child) clearParticles(child.get());
+    }
 }
 
 
@@ -121,7 +133,7 @@ void queryRange(Particle* p, Node* n, std::vector<Particle*>& nodes)
 
     float px = p->m_position.x;
     float py = p->m_position.y;
-    float pr = p->m_radius;
+    float pr = 2 * p->m_radius;
 
     // Node bounds
     float left   = n->x - n->half_W;
@@ -136,12 +148,16 @@ void queryRange(Particle* p, Node* n, std::vector<Particle*>& nodes)
         return;  // no overlap, prune this branch
     }
 
+    
+
+
     if (n->children[0] == nullptr)
     {
         for (auto& particle : n->particles)
         {
             nodes.push_back(particle);
         }
+        //std::cout << nodes.size() << " Particles queried\n";
     }
     else
     {
@@ -156,7 +172,97 @@ void queryRange(Particle* p, Node* n, std::vector<Particle*>& nodes)
     }
 }
 
+void getAllCollisionPairs(Node* n, std::vector<std::pair<Particle*, Particle*>>& pairs)
+{
+	if (!n) return;
+	
+	if (n->children[0] == nullptr)
+	{
+		for (int i = 0; i < n->particles.size(); i++)
+		{
+			for (int j = i + 1; j < n->particles.size(); j++)
+			{
+				pairs.push_back({n->particles[i], n->particles[j]});
+			}
+		}
+	
+	}
+	else
+	{
+	
+		for (auto& child : n->children)
+		{
+			if (child)
+			{
+				getAllCollisionPairs(child.get(), pairs);
+			}
+		}
+		
 
+		for (int i = 0; i < 4; i++)
+		{
+			if (!n->children[i]) continue;
+			
+			for (int j = i + 1; j < 4; j++)
+			{
+				if (!n->children[j]) continue;
+
+				std::vector<Particle*> particles_i;
+				std::vector<Particle*> particles_j;
+
+				getAllParticles(n->children[i].get(), particles_i);
+				getAllParticles(n->children[j].get(), particles_j);
+
+                for (auto* p1 : particles_i)
+                {
+                    for (auto* p2 : particles_j)
+                    {
+                        Vec2 v = p1->m_position - p2->m_position;
+                        float max_dist = (p1->m_radius + p2->m_radius) * 2.0f;
+                        if (v.x * v.x + v.y * v.y < max_dist * max_dist)
+                        {
+                            pairs.push_back({p1, p2});
+                        }
+                    }
+                }
+			
+			
+			}
+		
+		}
+	
+	}
+
+
+
+
+
+}
+
+
+
+void getAllParticles(Node* n, std::vector<Particle*>& particles)
+{
+	if (!n) return;
+
+	if (n->children[0] == nullptr)
+	{
+		particles.insert(particles.end(), n->particles.begin(), n->particles.end());
+	}
+	else
+	{
+		
+			for (auto& child : n->children)
+			{
+                if (child)
+		        {
+				    getAllParticles(child.get(), particles);
+    			}
+		
+		}
+	}
+
+}
 
 
 

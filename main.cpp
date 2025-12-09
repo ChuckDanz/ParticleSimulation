@@ -1,4 +1,5 @@
 #include <SFML/Window.hpp>
+#include <SFML/Graphics.hpp>
 #include <SFML/System/Clock.hpp>
 #include "renderer.hpp"
 
@@ -30,6 +31,16 @@ int main()
 
     sf::Clock globalClock;
     sf::Clock clock;
+
+    sf::Clock respawnClock, timer, fpstimer;
+    sf::Font arialFont;
+    arialFont.openFromFile("/mnt/c/Projects/ParticleSimulation/arial.ttf");
+
+    if (!arialFont.openFromFile("/mnt/c/Projects/ParticleSimulation/arial.ttf"))
+    {
+        std::cout << "Failed to load font\n";
+        return -1; // error
+    }
 
 
     //window.setPosition(sf::Vector2i(-1000, 1500));
@@ -90,11 +101,25 @@ int main()
             sf::Vector2f pos = static_cast<sf::Vector2f>(sf::Mouse::getPosition(window)) * ratio;
             solver.mousePush(Vec2{pos.x, pos.y});
         }
+
+        fpstimer.restart();
         solver.update();
+        float solver_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
+        
+        fpstimer.restart();
         window.clear(sf::Color::White);
-        //window.draw(boundary_background);
-        //render(window, solver);
-        renderWithDebug(window, solver, true); 
+        renderWithDebug(window, solver, true);
+        float render_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
+
+        sf::Text number(arialFont);
+        number.setFont(arialFont);
+        number.setString("Solver: " + std::to_string(solver_ms) + "ms | Render: " + std::to_string(render_ms) + 
+                        "ms | Total: " + std::to_string(solver_ms + render_ms) + "ms | " + 
+                        std::to_string(solver.getObjects().size()) + " particles");
+        number.setCharacterSize(20);
+        number.setFillColor(sf::Color::Magenta);
+        window.draw(number);
+
         window.display();
     }
 

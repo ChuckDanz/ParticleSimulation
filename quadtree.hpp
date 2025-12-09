@@ -46,5 +46,12 @@ void subdivide(Node* n);
 
 void clear(Node* n);
 
+void clearParticles(Node* n);
+
 Node* query(Particle* p, Node* n);
+
+void getAllCollisionPairs(Node* n, std::vector<std::pair<Particle*, Particle*>>& pairs);
+
+void getAllParticles(Node* n, std::vector<Particle*>& particles);
+
 #endif

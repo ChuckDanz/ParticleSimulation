@@ -60,7 +60,7 @@ public:
 
     void setObjectVelocity(Particle& particle, Vec2 v);
 
-    void checkCollisions();
+    void checkCollisions(std::vector<std::pair<Particle*, Particle*>>& collision_pairs);
     
 
 
