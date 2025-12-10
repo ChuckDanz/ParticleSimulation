@@ -24,7 +24,7 @@ int main()
     constexpr uint32_t window_height = 800;
 
     constexpr uint32_t max_objects = 2000;
-    constexpr float spawn_delay = 0.1f;
+    constexpr float spawn_delay = 0.01f;
 
 
     sf::RenderWindow window(sf::VideoMode({window_width, window_height}), "My window");
@@ -79,7 +79,7 @@ int main()
         if (solver.getObjects().size() < max_objects && clock.getElapsedTime().asSeconds() >= spawn_delay)
         {
             float t = globalClock.getElapsedTime().asSeconds();
-            auto& particle = solver.addObject(Vec2{420.0f, 100.0f}, 10.0f);
+            auto& particle = solver.addObject(Vec2{420.0f, 100.0f}, 3.0f);
             
             float angle = M_PI * 0.5f + max_angle * sin(3.0f * t);
 
@@ -108,7 +108,7 @@ int main()
         
         fpstimer.restart();
         window.clear(sf::Color::White);
-        renderWithDebug(window, solver, true);
+        renderWithDebug(window, solver, false);
         float render_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
 
         sf::Text number(arialFont);
