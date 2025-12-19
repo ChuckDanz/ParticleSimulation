@@ -11,7 +11,8 @@
 class Solver
 {
 private:
-    std::deque<Particle> objects;
+    std::vector<Particle> objects;
+
    
 
     static constexpr float dt = 1.0f / 60;
@@ -34,13 +35,16 @@ private:
 
 
 public:
-    Solver() = default;
+    Solver()
+    {
+        objects.reserve(3000);
+    }
 
     Particle& addObject(const Vec2& p_position, float radius);
 
     void update();
 
-    const std::deque<Particle>& getObjects() const;
+    const std::vector<Particle>& getObjects() const;
 
     // for a circle
     void applyBoundary();
@@ -48,7 +52,7 @@ public:
     //this is for the borders of the window
     void applyBorder();
 
-    void updateTree();
+    void updateTree(std::vector<std::pair<Particle*, Particle*>>& collision_pairs);
 
     std::array<float, 3> getBoundary() const;
 

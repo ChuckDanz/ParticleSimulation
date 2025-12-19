@@ -3,6 +3,7 @@
 
 #include "Vec2.hpp"
 #include <iostream>
+#include <deque>
 #include <SFML/Graphics.hpp>
 
 
@@ -20,6 +21,8 @@ public:
 
     Vec2 m_position; //displacement vector
     float m_radius = 1.0f;
+	
+    int index = 0;
 
     Particle();
     Particle(const Vec2& p_position, float p_radius);

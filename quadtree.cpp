@@ -1,145 +1,129 @@
 #include "quadtree.hpp"
 
-std::unique_ptr<Node> root = nullptr;
+std::vector<Node> nodes;
+int root_index = -1;
 
 constexpr float EPS = 1e-6f;
 
 
 void initialize_root()
 {
-	root = std::make_unique<Node>(WIDTH/2, HEIGHT/2, WIDTH/2, HEIGHT/2);
+    nodes.clear();
+    nodes.reserve(100000);
+	nodes.emplace_back(Node{WIDTH/2, HEIGHT/2, WIDTH/2, HEIGHT/2});
+    root_index = 0;
 }
 
-void insert(Particle* p, Node* n)
+void insert(Particle* p, int node_index, std::vector<Particle>& objects, std::vector<std::pair<Particle*, Particle*>>& collision_pairs)
 {
 
+    if (node_index < 0 || node_index >= nodes.size()) return;  // Safety
+
+    Node& n = nodes.at(node_index);
+
     // Safety: if particle is outside this node, don't insert
-    if (p->m_position.x < n->x - n->half_W || p->m_position.x > n->x + n->half_W ||
-        p->m_position.y < n->y - n->half_H || p->m_position.y > n->y + n->half_H)
+    if (p->m_position.x < n.x - n.half_W || p->m_position.x > n.x + n.half_W ||
+        p->m_position.y < n.y - n.half_H || p->m_position.y > n.y + n.half_H)
     {
         return;  // particle outside bounds, skip
     }
 
-	// if the node has children, place particles in correct children
-	if (n->children[0] != nullptr)
+	// recursion step to go into children
+	if (n.children[0] == -1)
 	{
-		
-        int index = getChildIndex(p, n);
-        insert(p, n->children[index].get());
-        return;
+		for (int q_index : n.particles)
+        {
+            Particle* q = &objects[q_index];
+
+            // Only generate pair (q, p) if q.index < p.index
+            if (q->index < p->index)
+                collision_pairs.emplace_back(q, p);
+        }   
     }
-  
+    
+
     //place if no children
-    n->particles.push_back(p);
+    n.particles.push_back(p->index);
 
-    if (n->particles.size() > MAX_PARTICLES && n->half_W > 4.0f && n->half_H > 4.0f)
+    if (n.particles.size() > MAX_PARTICLES && n.half_W > 4.0f && n.half_H > 4.0f)
     {
-        subdivide(n);
-        std::vector<Particle*> copy = n->particles;
-        n->particles.clear();
+        subdivide(node_index); 
 
-        for (auto& childParticle : copy)
-        {		
-            int index = getChildIndex(childParticle, n);
-            insert(childParticle, n->children[index].get());
-        }
+        // Re-insert particles
+        auto old = std::move(n.particles);
+        for (int idx : old)
+            insert(&objects[idx], n.children[getChildIndex(&objects[idx], n)], objects, collision_pairs);
+       
     }
 	
+    return;
 
 }
 
-int getChildIndex(const Particle* p, const Node* n)
+int getChildIndex(const Particle* p, const Node& n)
 {
 	
 	int index = 0;
 
-	if (p->m_position.x >= n->x - EPS) index += 1;
-	if (p->m_position.y >= n->y - EPS) index += 2;
+	if (p->m_position.x >= n.x - EPS) index += 1;
+	if (p->m_position.y >= n.y - EPS) index += 2;
 
 	return index;
 }
 
 
-void subdivide(Node* n)
-{
-	float hw = n->half_W / 2.0f;
-    float hh = n ->half_H / 2.0f;
+void subdivide(int node_i)
+{   
+    // Copy values BEFORE emplace_back
+    float x = nodes[node_i].x;
+    float y = nodes[node_i].y;
+    float hw = nodes[node_i].half_W / 2.0f;
+    float hh = nodes[node_i].half_H / 2.0f;
+
+    // DON'T get reference to 'n' until after ALL emplace_backs!
+    
     // top left
-    n->children[0] = std::make_unique<Node>(n->x - hw, n->y - hh, hw, hh); // - -
+    nodes.emplace_back(Node{x - hw, y - hh, hw, hh});
+    nodes[node_i].children[0] = nodes.size() - 1;  // Get FRESH reference each time
 
     // top right
-    n->children[1] = std::make_unique<Node>(n->x + hw, n->y - hh, hw, hh); // + -
+    nodes.emplace_back(Node{x + hw, y - hh, hw, hh});
+    nodes[node_i].children[1] = nodes.size() - 1;
 
     // bottom left
-    n->children[2] = std::make_unique<Node>(n->x - hw, n->y + hh, hw, hh); // - + 
-
+    nodes.emplace_back(Node{x - hw, y + hh, hw, hh});
+    nodes[node_i].children[2] = nodes.size() - 1;
+     
     // bottom right
-    n->children[3] = std::make_unique<Node>(n->x + hw, n->y + hh, hw, hh); // + +
-
-	
-}
-
-void clearParticles(Node* n)
-{
-    if (!n) return;
-    n->particles.clear();
-    for (auto& child : n->children)
-    {
-        if (child) clearParticles(child.get());
-    }
+    nodes.emplace_back(Node{x + hw, y + hh, hw, hh});
+    nodes[node_i].children[3] = nodes.size() - 1;
 }
 
 
-
-void clear(Node* n)
+void clear()
 {
-
-	if (!n) return;
-
-
-	for (auto& child : n->children)
-	{	
-		if (child)
-		{
-			clear(child.get());
-			child.reset();
-		}
-	}
-	n->particles.clear();		
+    nodes.clear();
+    nodes.reserve(1000);	
+    root_index = -1;	
 }
 
-Node* query(Particle* p, Node* n)
+
+void queryRange(Particle* p, int node_index, std::vector<Particle*>& node, std::vector<Particle>& objects, int min_index)
 {
-	 if (!n) return nullptr;
 
-    if (p->m_position.x < n->x - n->half_W || p->m_position.x > n->x + n->half_W ||
-        p->m_position.y < n->y - n->half_H || p->m_position.y > n->y + n->half_H)
-    {
-        return nullptr;
-    }
+    if (node_index < 0 || node_index >= nodes.size()) return;
 
-    if (n->children[0] != nullptr)
-    {
-        int idx = getChildIndex(p, n);
-        return query(p, n->children[idx].get());
-    }
-
-    return n;
-}
-
-void queryRange(Particle* p, Node* n, std::vector<Particle*>& nodes)
-{
-    if (!n) return;
+    Node& n = nodes.at(node_index);
 
     float px = p->m_position.x;
     float py = p->m_position.y;
     float pr = 2 * p->m_radius;
 
     // Node bounds
-    float left   = n->x - n->half_W;
-    float right  = n->x + n->half_W;
-    float top    = n->y - n->half_H;
-    float bottom = n->y + n->half_H;
+    float left   = n.x - n.half_W;
+    float right  = n.x + n.half_W;
+    float top    = n.y - n.half_H;
+    float bottom = n.y + n.half_H;
 
     // AABB overlap test: skip if particle circle doesn't overlap this node
     if (px + pr < left  || px - pr > right ||
@@ -148,121 +132,30 @@ void queryRange(Particle* p, Node* n, std::vector<Particle*>& nodes)
         return;  // no overlap, prune this branch
     }
 
-    
 
-
-    if (n->children[0] == nullptr)
+    if (n.children[0] == -1)
     {
-        for (auto& particle : n->particles)
+        for (int index : n.particles)
         {
-            nodes.push_back(particle);
+            if (index >= min_index)
+                node.push_back(&objects.at(index));
         }
         //std::cout << nodes.size() << " Particles queried\n";
     }
     else
     {
-        for (auto& child : n->children)
+        for (int i = 0; i < 4; i++)
         {
-            if (child)
+         	int child = n.children[i];
+
+            if (child != -1)   // skip empty children
             {
-                  queryRange(p, child.get(), nodes);
+                queryRange(p, child, node, objects, min_index);
             }
-          
         }
     }
 }
 
-void getAllCollisionPairs(Node* n, std::vector<std::pair<Particle*, Particle*>>& pairs)
-{
-	if (!n) return;
-	
-	if (n->children[0] == nullptr)
-	{
-		for (int i = 0; i < n->particles.size(); i++)
-		{
-			for (int j = i + 1; j < n->particles.size(); j++)
-			{
-				pairs.push_back({n->particles[i], n->particles[j]});
-			}
-		}
-	
-	}
-	else
-	{
-	
-		for (auto& child : n->children)
-		{
-			if (child)
-			{
-				getAllCollisionPairs(child.get(), pairs);
-			}
-		}
-		
-
-		for (int i = 0; i < 4; i++)
-		{
-			if (!n->children[i]) continue;
-			
-			for (int j = i + 1; j < 4; j++)
-			{
-				if (!n->children[j]) continue;
-
-				std::vector<Particle*> particles_i;
-				std::vector<Particle*> particles_j;
-
-				getAllParticles(n->children[i].get(), particles_i);
-				getAllParticles(n->children[j].get(), particles_j);
-
-                for (auto* p1 : particles_i)
-                {
-                    for (auto* p2 : particles_j)
-                    {
-                        Vec2 v = p1->m_position - p2->m_position;
-                        float max_dist = (p1->m_radius + p2->m_radius) * 2.0f;
-                        if (v.x * v.x + v.y * v.y < max_dist * max_dist)
-                        {
-                            pairs.push_back({p1, p2});
-                        }
-                    }
-                }
-			
-			
-			}
-		
-		}
-	
-	}
-
-
-
-
-
-}
-
-
-
-void getAllParticles(Node* n, std::vector<Particle*>& particles)
-{
-	if (!n) return;
-
-	if (n->children[0] == nullptr)
-	{
-		particles.insert(particles.end(), n->particles.begin(), n->particles.end());
-	}
-	else
-	{
-		
-			for (auto& child : n->children)
-			{
-                if (child)
-		        {
-				    getAllParticles(child.get(), particles);
-    			}
-		
-		}
-	}
-
-}
 
 
 

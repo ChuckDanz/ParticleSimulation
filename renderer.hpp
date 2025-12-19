@@ -8,28 +8,27 @@
 
 
 // Draw quadtree node boundaries recursively
-inline void renderQuadtree(sf::RenderTarget& target, Node* node)
+inline void renderQuadtree(sf::RenderTarget& target, int node_index)
 {
-    if (!node) return;
+    if (node_index < 0 || node_index >= nodes.size()) return;
+
+    const Node& node = nodes[node_index];
 
     // Draw this node's boundary as a rectangle outline
-    sf::RectangleShape rect;
-    rect.setSize(sf::Vector2f(node->half_W * 2.0f, node->half_H * 2.0f));
-    rect.setPosition(sf::Vector2f(node->x - node->half_W, node->y - node->half_H));
+    static sf::RectangleShape rect;  // Reuse to avoid allocations
+    rect.setSize(sf::Vector2f(node.half_W * 2.0f, node.half_H * 2.0f));
+    rect.setPosition(sf::Vector2f(node.x - node.half_W, node.y - node.half_H));
     rect.setFillColor(sf::Color::Transparent);
     rect.setOutlineColor(sf::Color::Green);
     rect.setOutlineThickness(1.0f);
     target.draw(rect);
 
-    // Optionally show particle count in this node
-    // (requires sf::Font setup — skip if you don't need it)
-
     // Recurse into children
-    for (const auto& child : node->children)
+    for (int i = 0; i < 4; i++)
     {
-        if (child)
+        if (node.children[i] != -1)
         {
-            renderQuadtree(target, child.get());
+            renderQuadtree(target, node.children[i]);
         }
     }
 }
@@ -60,9 +59,9 @@ inline void renderWithDebug(sf::RenderTarget& target, Solver& solver, bool showQ
     render(target, solver);
 
     // Draw quadtree overlay
-    if (showQuadtree && root)
+    if (showQuadtree && root_index != -1)
     {
-        renderQuadtree(target, root.get());
+        renderQuadtree(target, root_index);  // Pass root index instead of pointer
     }
 }
 

@@ -16,7 +16,7 @@ constexpr int WIDTH = 800;
 
 struct Node
 {
-	std::vector<Particle*> particles;
+	std::vector<int> particles;
 
 	float x{}; //center of the nodes
 	float y{};
@@ -24,34 +24,31 @@ struct Node
 	float half_W{};
 	float half_H{};
 
-	std::array<std::unique_ptr<Node>, 4> children; // ORDER: top left, top right, bottom left, bottom right 
+	std::array<int, 4> children; // ORDER: top left, top right, bottom left, bottom right 
 
 
-	Node(float x, float y, float hw, float hh) : particles{}, x{x}, y{y}, half_W{hw}, half_H{hh}, children{} {};
+	Node(float x, float y, float hw, float hh) : particles{}, x{x}, y{y}, half_W{hw}, half_H{hh}, children{} { children.fill(-1);};
 			
 
 };
 
-extern std::unique_ptr<Node> root;
+extern std::vector<Node> nodes;
+
+extern int root_index;
 
 void initialize_root();
 
-void insert(Particle* p, Node* n);
+void insert(Particle* p, int node_index, std::vector<Particle>& objects, std::vector<std::pair<Particle*, Particle*>>& collision_pairs);
 
-void queryRange(Particle* p, Node* n, std::vector<Particle*>& nodes);
+void queryRange(Particle* p, int node_index, std::vector<Particle*>& node, std::vector<Particle>& objects, int min_index);
 
-int getChildIndex(const Particle* p, const Node* n);
+int getChildIndex(const Particle* p, const Node& n);
 
-void subdivide(Node* n);
+void subdivide(int node_i);
 
-void clear(Node* n);
+void clear();
 
-void clearParticles(Node* n);
 
-Node* query(Particle* p, Node* n);
 
-void getAllCollisionPairs(Node* n, std::vector<std::pair<Particle*, Particle*>>& pairs);
-
-void getAllParticles(Node* n, std::vector<Particle*>& particles);
 
 #endif

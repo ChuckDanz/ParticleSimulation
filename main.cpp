@@ -23,8 +23,8 @@ int main()
     constexpr uint32_t window_width = 800;
     constexpr uint32_t window_height = 800;
 
-    constexpr uint32_t max_objects = 2000;
-    constexpr float spawn_delay = 0.01f;
+    constexpr uint32_t max_objects = 100;
+    constexpr float spawn_delay = 0.01f; //0.1f
 
 
     sf::RenderWindow window(sf::VideoMode({window_width, window_height}), "My window");

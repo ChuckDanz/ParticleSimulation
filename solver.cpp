@@ -5,55 +5,37 @@
 
 Particle& Solver::addObject(const Vec2& p_position, float radius)
 {
-    return objects.emplace_back(Particle(p_position, radius));
+    objects.emplace_back(Particle(p_position, radius));
+    objects.back().index = objects.size() - 1;
+    return objects.back();
 }
 
 void Solver::update()
 {
-    auto start = std::chrono::high_resolution_clock::now();
+    auto frame_start = std::chrono::high_resolution_clock::now();
     
     float substep_dt = dt / substeps;
     
-    double gravity_time = 0, tree_time = 0, collision_time = 0, border_time = 0, update_time = 0;
+    double tree_time = 0, pairs_time = 0, gravity_time = 0, collision_time = 0, border_time = 0, update_time = 0;
 
-    // Build quadtree - TIME THIS
+    std::vector<std::pair<Particle*, Particle*>> collision_pairs;
+    collision_pairs.reserve(objects.size() * 3);
+
+    // Build quadtree AND collision pairs in one pass
     auto t_tree_start = std::chrono::high_resolution_clock::now();
-    updateTree();
     auto t_tree_end = std::chrono::high_resolution_clock::now();
     tree_time = std::chrono::duration<double, std::milli>(t_tree_end - t_tree_start).count();
 
-    std::vector<Particle*> nearby_particles;
-    nearby_particles.reserve(100);
+    // NO separate pair building needed - already done in updateTree!
 
-    std::vector<std::pair<Particle*, Particle*>> collision_pairs;
-
-    int num_objects = objects.size();
-    
-    // Loop through all current particles in simulation
-    for (int i = 0; i < num_objects; i++) 
-    {
-        Particle* p_1 = &objects[i];
-
-        // Query in tree
-        nearby_particles.clear();
-        queryRange(p_1, root.get(), nearby_particles);
-
-        // Loop through quadtree particles
-        for (auto& p_2 : nearby_particles)
-        { 
-            if (p_1 == p_2) continue;
-            if (p_2 < p_1) continue;
-    
-            collision_pairs.push_back({p_1, p_2});
-        }
-    }
-
-    // Physics substeps WITH collisions
+    // Physics substeps
     for (int i = 0; i < substeps; i++)
     {    
         auto t1 = std::chrono::high_resolution_clock::now();
         applyGravity();
         auto t2 = std::chrono::high_resolution_clock::now();
+
+        updateTree(collision_pairs);  // This fills collision_pairs during insertion
         
         checkCollisions(collision_pairs);
         auto t3 = std::chrono::high_resolution_clock::now();
@@ -70,15 +52,20 @@ void Solver::update()
         update_time += std::chrono::duration<double, std::milli>(t5-t4).count();
     }
     
+    auto frame_end = std::chrono::high_resolution_clock::now();
+    double total_frame = std::chrono::duration<double, std::milli>(frame_end - frame_start).count();
+    
     static int frame_count = 0;
     if (++frame_count % 60 == 0) {
         std::cout << "\n=== PERFORMANCE (" << objects.size() << " particles, " << substeps << " substeps) ===\n";
-        std::cout << "  UpdateTree:  " << tree_time << " ms (1x per frame)\n";
-        std::cout << "  Gravity:     " << gravity_time << " ms\n";
-        std::cout << "  Collisions:  " << collision_time << " ms\n";
-        std::cout << "  Border:      " << border_time << " ms\n";
-        std::cout << "  UpdateObjs:  " << update_time << " ms\n";
-        std::cout << "  TOTAL:       " << (gravity_time + tree_time + collision_time + border_time + update_time) << " ms\n\n";
+        std::cout << "  UpdateTree:      " << tree_time << " ms (" << collision_pairs.size() << " pairs found during insert)\n";
+        std::cout << "  Gravity:         " << gravity_time << " ms (" << substeps << " substeps)\n";
+        std::cout << "  Collisions:      " << collision_time << " ms (" << substeps << " substeps)\n";
+        std::cout << "  Border:          " << border_time << " ms (" << substeps << " substeps)\n";
+        std::cout << "  UpdateObjs:      " << update_time << " ms (" << substeps << " substeps)\n";
+        std::cout << "  ---\n";
+        std::cout << "  Measured Total:  " << (tree_time + gravity_time + collision_time + border_time + update_time) << " ms\n";
+        std::cout << "  Actual Total:    " << total_frame << " ms\n";
     }
 }
 
@@ -94,13 +81,13 @@ void Solver::updateObjects(float dt)
         particle.update(dt);
 }
 
-void Solver::updateTree()
+void Solver::updateTree(std::vector<std::pair<Particle*, Particle*>>& collision_pairs)
 {
-    clear(root.get());
+    clear();
     initialize_root();
     for (auto& particle : objects)
     {
-        insert(&particle, root.get());
+        insert(&particle, root_index, objects, collision_pairs);
     }
 }
 
@@ -121,7 +108,7 @@ void Solver::updateTree()
 //     }
 // }
 
-const std::deque<Particle>& Solver::getObjects() const
+const std::vector<Particle>& Solver::getObjects() const
 {
     return objects;
 }
@@ -232,11 +219,6 @@ void Solver::checkCollisions(std::vector<std::pair<Particle*, Particle*>>& colli
     { 
         Particle* p_1 = pair.first;
         Particle* p_2 = pair.second;
-
-        // Compare pointers, not indices!
-        if (p_1 == p_2) continue;
-
-        if (p_2 < p_1) continue; // avoid double checking pairs
 
         Vec2 v = p_1->m_position - p_2->m_position;
 

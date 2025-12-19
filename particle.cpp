@@ -6,6 +6,7 @@ Particle::Particle(const Vec2& p_position, float p_radius)
     : m_position{p_position},
     m_position_last{p_position},
     m_acceleration{10.0f, 10.0f},
+    index{0},
     m_radius{p_radius}
 {}
 
