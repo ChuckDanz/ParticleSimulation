@@ -29,7 +29,7 @@ inline void renderQuadtree(sf::RenderTarget& target, int node_index)
         if (node.children[i] != -1)
         {
             renderQuadtree(target, node.children[i]);
-        }
+        }./
     }
 }
 

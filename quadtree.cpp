@@ -14,49 +14,53 @@ void initialize_root()
     root_index = 0;
 }
 
-void insert(Particle* p, int node_index, std::vector<Particle>& objects, std::vector<std::pair<Particle*, Particle*>>& collision_pairs)
+void insert(Particle* p, int node_index, std::vector<Particle>& objects)
 {
+    if (node_index < 0 || node_index >= nodes.size()) return;
 
-    if (node_index < 0 || node_index >= nodes.size()) return;  // Safety
+    Node& n = nodes[node_index];
 
-    Node& n = nodes.at(node_index);
-
-    // Safety: if particle is outside this node, don't insert
     if (p->m_position.x < n.x - n.half_W || p->m_position.x > n.x + n.half_W ||
         p->m_position.y < n.y - n.half_H || p->m_position.y > n.y + n.half_H)
     {
-        return;  // particle outside bounds, skip
-    }
-
-	// recursion step to go into children
-	if (n.children[0] == -1)
-	{
-		for (int q_index : n.particles)
-        {
-            Particle* q = &objects[q_index];
-
-            // Only generate pair (q, p) if q.index < p.index
-            if (q->index < p->index)
-                collision_pairs.emplace_back(q, p);
-        }   
+        return;
     }
     
-
-    //place if no children
-    n.particles.push_back(p->index);
-
-    if (n.particles.size() > MAX_PARTICLES && n.half_W > 4.0f && n.half_H > 4.0f)
+    // recurse if not leaf node
+    if (n.children[0] != -1)
     {
-        subdivide(node_index); 
-
-        // Re-insert particles
-        auto old = std::move(n.particles);
-        for (int idx : old)
-            insert(&objects[idx], n.children[getChildIndex(&objects[idx], n)], objects, collision_pairs);
-       
+        int index = getChildIndex(p, n);
+        insert(p, n.children[index], objects);
+        return;
     }
 	
-    return;
+    //leaf node
+    n.particles[n.count] = p->index;
+    n.count++;
+
+    if (n.count == MAX_PARTICLES && n.half_W > 4.0f && n.half_H > 4.0f)
+    {	
+        auto particle_copy = n.particles;
+	    auto old_count = n.count;
+
+        subdivide(node_index);
+        n.count = 0;
+
+        for (int k = 0; k < old_count; k++)
+        {
+	        int idx = particle_copy[k];
+            Particle* q = &objects[idx];
+	        int child_index = getChildIndex(q, n);
+            insert(q, n.children[child_index], objects);
+        }
+
+
+	
+        int child_index = getChildIndex(p, n);
+        insert(p, n.children[child_index], objects);
+
+        return;
+    }
 
 }
 
@@ -103,7 +107,7 @@ void subdivide(int node_i)
 void clear()
 {
     nodes.clear();
-    nodes.reserve(1000);	
+    nodes.reserve(100000);	
     root_index = -1;	
 }
 
@@ -113,7 +117,7 @@ void queryRange(Particle* p, int node_index, std::vector<Particle*>& node, std::
 
     if (node_index < 0 || node_index >= nodes.size()) return;
 
-    Node& n = nodes.at(node_index);
+    Node& n = nodes[node_index];
 
     float px = p->m_position.x;
     float py = p->m_position.y;
@@ -135,10 +139,13 @@ void queryRange(Particle* p, int node_index, std::vector<Particle*>& node, std::
 
     if (n.children[0] == -1)
     {
-        for (int index : n.particles)
-        {
-            if (index >= min_index)
-                node.push_back(&objects.at(index));
+        if (n.children[0] == -1) {
+            for (int k = 0; k < n.count; ++k) {
+                int index = n.particles[k];
+                if (index >= min_index)
+                    node.push_back(&objects[index]);
+            }
+            return;
         }
         //std::cout << nodes.size() << " Particles queried\n";
     }

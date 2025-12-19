@@ -16,17 +16,52 @@ void Solver::update()
     
     float substep_dt = dt / substeps;
     
-    double tree_time = 0, pairs_time = 0, gravity_time = 0, collision_time = 0, border_time = 0, update_time = 0;
+    double sort_time = 0, tree_time = 0, pairs_time = 0, gravity_time = 0, collision_time = 0, border_time = 0, update_time = 0;
 
-    std::vector<std::pair<Particle*, Particle*>> collision_pairs;
-    collision_pairs.reserve(objects.size() * 3);
+    // SPATIAL SORT - improves cache locality
+    auto t_sort_start = std::chrono::high_resolution_clock::now();
+    spatialSort();
+    auto t_sort_end = std::chrono::high_resolution_clock::now();
+    sort_time = std::chrono::duration<double, std::milli>(t_sort_end - t_sort_start).count();
 
-    // Build quadtree AND collision pairs in one pass
+    // Build quadtree once per frame
     auto t_tree_start = std::chrono::high_resolution_clock::now();
+    updateTree();
     auto t_tree_end = std::chrono::high_resolution_clock::now();
     tree_time = std::chrono::duration<double, std::milli>(t_tree_end - t_tree_start).count();
 
-    // NO separate pair building needed - already done in updateTree!
+    // Build collision pairs once per frame
+    auto t_pairs_start = std::chrono::high_resolution_clock::now();
+    
+    std::vector<Particle*> nearby_particles;
+    nearby_particles.reserve(100);
+
+    std::vector<std::pair<Particle*, Particle*>> collision_pairs;
+    collision_pairs.reserve(objects.size() * 3);  // Better estimate
+
+    int num_objects = objects.size();
+    
+    // Loop through all particles and find collision pairs
+    for (int i = 0; i < num_objects; i++) 
+    {
+        Particle* p_1 = &objects[i];
+
+        // Query nearby particles from quadtree
+        nearby_particles.clear();
+        queryRange(p_1, root_index, nearby_particles, objects, i + 1);
+
+        // Add collision pairs (avoid duplicates)
+        for (auto* p_2 : nearby_particles)
+        { 
+            if (p_1 == p_2) continue;
+            if (p_2->index <= i) continue;  // Changed from < to <= for clarity
+    
+            collision_pairs.push_back({p_1, p_2});
+        }
+    }
+    
+    auto t_pairs_end = std::chrono::high_resolution_clock::now();
+    pairs_time = std::chrono::duration<double, std::milli>(t_pairs_end - t_pairs_start).count();
 
     // Physics substeps
     for (int i = 0; i < substeps; i++)
@@ -34,8 +69,6 @@ void Solver::update()
         auto t1 = std::chrono::high_resolution_clock::now();
         applyGravity();
         auto t2 = std::chrono::high_resolution_clock::now();
-
-        updateTree(collision_pairs);  // This fills collision_pairs during insertion
         
         checkCollisions(collision_pairs);
         auto t3 = std::chrono::high_resolution_clock::now();
@@ -58,14 +91,17 @@ void Solver::update()
     static int frame_count = 0;
     if (++frame_count % 60 == 0) {
         std::cout << "\n=== PERFORMANCE (" << objects.size() << " particles, " << substeps << " substeps) ===\n";
-        std::cout << "  UpdateTree:      " << tree_time << " ms (" << collision_pairs.size() << " pairs found during insert)\n";
+        std::cout << "  SpatialSort:     " << sort_time << " ms\n";
+        std::cout << "  UpdateTree:      " << tree_time << " ms (1x per frame)\n";
+        std::cout << "  BuildPairs:      " << pairs_time << " ms (" << collision_pairs.size() << " pairs found)\n";
         std::cout << "  Gravity:         " << gravity_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  Collisions:      " << collision_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  Border:          " << border_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  UpdateObjs:      " << update_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  ---\n";
-        std::cout << "  Measured Total:  " << (tree_time + gravity_time + collision_time + border_time + update_time) << " ms\n";
+        std::cout << "  Measured Total:  " << (sort_time + tree_time + pairs_time + gravity_time + collision_time + border_time + update_time) << " ms\n";
         std::cout << "  Actual Total:    " << total_frame << " ms\n";
+        std::cout << "  Overhead:        " << (total_frame - (sort_time + tree_time + pairs_time + gravity_time + collision_time + border_time + update_time)) << " ms\n\n";
     }
 }
 
@@ -81,13 +117,13 @@ void Solver::updateObjects(float dt)
         particle.update(dt);
 }
 
-void Solver::updateTree(std::vector<std::pair<Particle*, Particle*>>& collision_pairs)
+void Solver::updateTree()
 {
     clear();
     initialize_root();
     for (auto& particle : objects)
     {
-        insert(&particle, root_index, objects, collision_pairs);
+        insert(&particle, root_index, objects);
     }
 }
 
@@ -107,6 +143,61 @@ void Solver::updateTree(std::vector<std::pair<Particle*, Particle*>>& collision_
 //         insert(&particle, root.get());
 //     }
 // }
+
+
+void Solver::spatialSort()
+{
+    constexpr int GRID_SIZE = 512;
+    
+    std::sort(objects.begin(), objects.end(), [this](const Particle& a, const Particle& b) {
+        // Normalize positions to [0, 1]
+        float ax = a.m_position.x / WIDTH;
+        float ay = a.m_position.y / HEIGHT;
+        float bx = b.m_position.x / WIDTH;
+        float by = b.m_position.y / HEIGHT;
+        
+        // Convert to grid indices
+        int gx_a = static_cast<int>(ax * GRID_SIZE);
+        int gy_a = static_cast<int>(ay * GRID_SIZE);
+        int gx_b = static_cast<int>(bx * GRID_SIZE);
+        int gy_b = static_cast<int>(by * GRID_SIZE);
+        
+        // Clamp
+        gx_a = std::max(0, std::min(GRID_SIZE - 1, gx_a));
+        gy_a = std::max(0, std::min(GRID_SIZE - 1, gy_a));
+        gx_b = std::max(0, std::min(GRID_SIZE - 1, gx_b));
+        gy_b = std::max(0, std::min(GRID_SIZE - 1, gy_b));
+        
+        // Morton encode
+        uint64_t morton_a = mortonEncode(gx_a, gy_a);
+        uint64_t morton_b = mortonEncode(gx_b, gy_b);
+        
+        return morton_a < morton_b;
+    });
+    
+    // Update indices after sorting
+    for (size_t i = 0; i < objects.size(); ++i) {
+        objects[i].index = i;
+    }
+}
+
+
+//interleave bits of x and y to produce a Morton code (Z-order curve)
+uint64_t Solver::mortonEncode(uint32_t x, uint32_t y)
+{
+    auto expandBits = [](uint32_t v) -> uint64_t {
+        uint64_t x = v;
+        x = (x | (x << 16)) & 0x0000FFFF0000FFFFull;
+        x = (x | (x << 8))  & 0x00FF00FF00FF00FFull;
+        x = (x | (x << 4))  & 0x0F0F0F0F0F0F0F0Full;
+        x = (x | (x << 2))  & 0x3333333333333333ull;
+        x = (x | (x << 1))  & 0x5555555555555555ull;
+        return x;
+    };
+    
+    return expandBits(x) | (expandBits(y) << 1);
+}
+
 
 const std::vector<Particle>& Solver::getObjects() const
 {

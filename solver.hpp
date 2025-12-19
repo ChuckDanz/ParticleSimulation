@@ -5,8 +5,10 @@
 #include <vector>
 #include <array>
 #include <deque>
+#include <algorithm>
 #include "particle.hpp"
 #include "quadtree.hpp"
+
 
 class Solver
 {
@@ -32,7 +34,10 @@ private:
     void updateObjects(float dt);
 
     Vec2 calculateBounceBack(const Vec2& p_velocity, const Vec2& p_normal_col);
+    
+    void spatialSort();
 
+    uint64_t mortonEncode(uint32_t x, uint32_t y);
 
 public:
     Solver()
@@ -52,7 +57,7 @@ public:
     //this is for the borders of the window
     void applyBorder();
 
-    void updateTree(std::vector<std::pair<Particle*, Particle*>>& collision_pairs);
+    void updateTree();
 
     std::array<float, 3> getBoundary() const;
 
