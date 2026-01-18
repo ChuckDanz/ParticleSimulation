@@ -33,6 +33,33 @@ inline void renderQuadtree(sf::RenderTarget& target, int node_index)
     }
 }
 
+// Draw spatial grid overlay
+inline void renderGrid(sf::RenderTarget& target, int window_size, int gridsize)
+{
+    int num_cells = window_size / gridsize;
+    
+    sf::RectangleShape gridLine;
+    gridLine.setFillColor(sf::Color(100, 100, 100, 100));  // Semi-transparent gray
+    
+    // Draw vertical lines
+    for (int i = 0; i <= num_cells; i++)
+    {
+        float x = i * gridsize;
+        gridLine.setSize(sf::Vector2f(1.0f, window_size));
+        gridLine.setPosition(sf::Vector2f(x, 0));
+        target.draw(gridLine);
+    }
+    
+    // Draw horizontal lines
+    for (int j = 0; j <= num_cells; j++)
+    {
+        float y = j * gridsize;
+        gridLine.setSize(sf::Vector2f(window_size, 1.0f));
+        gridLine.setPosition(sf::Vector2f(0, y));
+        target.draw(gridLine);
+    }
+}
+
 
 inline void render(sf::RenderTarget& target, Solver& solver) 
 {
@@ -65,6 +92,18 @@ inline void renderWithDebug(sf::RenderTarget& target, Solver& solver, bool showQ
     }
 }
 
+// Render with spatial grid overlay
+inline void renderWithGrid(sf::RenderTarget& target, Solver& solver, int window_size, int gridsize, bool showGrid = true)
+{
+    // Draw particles first
+    render(target, solver);
+    
+    // Draw grid overlay only if enabled
+    if (showGrid)
+    {
+        renderGrid(target, window_size, gridsize);
+    }
+}
 
 
 

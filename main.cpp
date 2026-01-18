@@ -1,6 +1,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/System/Clock.hpp>
+#include <string>
 #include "renderer.hpp"
 
 static sf::Color getColor(float t)
@@ -23,8 +24,15 @@ int main()
     constexpr uint32_t window_width = 800;
     constexpr uint32_t window_height = 800;
 
-    constexpr uint32_t max_objects = 2000;
+    constexpr uint32_t max_objects = 8000;
     constexpr float spawn_delay = 0.01f; //0.1f
+
+    constexpr float RADIUS = 3.0f;
+    
+    const std::string COLLISION_TYPE = "GRID"; //GRID or QUADTREE 
+
+    bool showDebugGrid = true;  // Toggle grid visualization
+    bool showCounts = false;     // Toggle particle count display
 
 
     sf::RenderWindow window(sf::VideoMode({window_width, window_height}), "My window");
@@ -74,18 +82,40 @@ int main()
             // "close requested" event: we close the window
             if (event->is<sf::Event::Closed>())
                 window.close();
+                
+            // Handle key presses for debug toggles
+            if (event->is<sf::Event::KeyPressed>())
+            {
+                const auto& keyEvent = event->getIf<sf::Event::KeyPressed>();
+                
+                // Toggle grid visualization with 'G'
+                if (keyEvent->code == sf::Keyboard::Key::G)
+                {
+                    showDebugGrid = !showDebugGrid;
+                    std::cout << "Debug grid: " << (showDebugGrid ? "ON" : "OFF") << std::endl;
+                }
+                
+                // Toggle particle count display with 'C'
+                if (keyEvent->code == sf::Keyboard::Key::C)
+                {
+                    showCounts = !showCounts;
+                    std::cout << "Particle counts: " << (showCounts ? "ON" : "OFF") << std::endl;
+                }
+            }
         }
 
         if (solver.getObjects().size() < max_objects && clock.getElapsedTime().asSeconds() >= spawn_delay)
         {
             float t = globalClock.getElapsedTime().asSeconds();
-            auto& particle = solver.addObject(Vec2{420.0f, 100.0f}, 3.0f);
-            
+            Particle* particle = nullptr;
+
+            if (COLLISION_TYPE == "QUADTREE") particle = &solver.addObject(Vec2{420.0f, 100.0f}, RADIUS);
+            else if (COLLISION_TYPE == "GRID") particle = &solver.addObjectGrid(Vec2{420.0f, 100.0f}, RADIUS);
             float angle = M_PI * 0.5f + max_angle * sin(3.0f * t);
 
-            particle.setColor(getColor(t));
+            particle->setColor(getColor(t));
             
-            solver.setObjectVelocity(particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
+            solver.setObjectVelocity(*particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
             clock.restart();
         }
 
@@ -101,27 +131,65 @@ int main()
             sf::Vector2f pos = static_cast<sf::Vector2f>(sf::Mouse::getPosition(window)) * ratio;
             solver.mousePush(Vec2{pos.x, pos.y});
         }
+    
+        if (COLLISION_TYPE == "QUADTREE")
+        {
+            fpstimer.restart();
+            solver.updateQuadtree();
+            float solver_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
+            
+            fpstimer.restart();
+            window.clear(sf::Color::White);
+            renderWithDebug(window, solver, false);
+            float render_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
 
-        fpstimer.restart();
-        solver.update();
-        float solver_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
-        
-        fpstimer.restart();
-        window.clear(sf::Color::White);
-        renderWithDebug(window, solver, false);
-        float render_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
+            sf::Text number(arialFont);
+            number.setFont(arialFont);
+            number.setString("Solver: " + std::to_string(solver_ms) + "ms | Render: " + std::to_string(render_ms) + 
+                    "ms | Total: " + std::to_string(solver_ms + render_ms) + "ms | " + 
+                    std::to_string(solver.getObjects().size()) + " particles");
+            number.setCharacterSize(20);
+            number.setFillColor(sf::Color::Magenta);
+            window.draw(number);
 
-        sf::Text number(arialFont);
-        number.setFont(arialFont);
-        number.setString("Solver: " + std::to_string(solver_ms) + "ms | Render: " + std::to_string(render_ms) + 
-                        "ms | Total: " + std::to_string(solver_ms + render_ms) + "ms | " + 
-                        std::to_string(solver.getObjects().size()) + " particles");
-        number.setCharacterSize(20);
-        number.setFillColor(sf::Color::Magenta);
-        window.draw(number);
+            window.display();
+            
+        }
+        else if (COLLISION_TYPE == "GRID")
+        {
+            fpstimer.restart();
+            solver.updateGrid();
+            float solver_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
+            
+            fpstimer.restart();
+            window.clear(sf::Color::White);
+            
+            // Render with grid debug overlay
+            if (showCounts)
+            {
+                renderWithGrid(window, solver, window_width, solver.gridsize, showDebugGrid);
+            }
+            else
+            {
+                renderWithGrid(window, solver, window_width, solver.gridsize, showDebugGrid);
+            }
+            
+            float render_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
 
-        window.display();
-    }
+            sf::Text number(arialFont);
+            number.setFont(arialFont);
+            number.setString("Solver: " + std::to_string(solver_ms) + "ms | Render: " + std::to_string(render_ms) + 
+                    "ms | Total: " + std::to_string(solver_ms + render_ms) + "ms | " + 
+                    std::to_string(solver.getObjects().size()) + " particles | Grid: " +
+                    std::to_string(window_width / solver.gridsize) + "x" + std::to_string(window_height / solver.gridsize) +
+                    " [G=Grid C=Counts]");
+            number.setCharacterSize(20);
+            number.setFillColor(sf::Color::Magenta);
+            window.draw(number);
+
+            window.display();
+        }
+    } // end of while (window.isOpen())	
 
     return 0;
 }

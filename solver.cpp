@@ -10,7 +10,68 @@ Particle& Solver::addObject(const Vec2& p_position, float radius)
     return objects.back();
 }
 
-void Solver::update()
+Particle& Solver::addObjectGrid(const Vec2& p_position, float radius)
+{
+    int gridx = p_position.x / gridsize;
+    int gridy = p_position.y / gridsize;   
+
+    int id = (int)objects.size();  
+
+    objects.emplace_back(Particle(p_position, radius, gridx, gridy, id));
+    objects.back().index = objects.size() - 1;
+    grid[gridx][gridy].push_back(id);
+    return objects.back();
+}
+
+void Solver::updateGrid()
+{
+    auto frame_start = std::chrono::high_resolution_clock::now();
+    
+    float substep_dt = dt / substeps;
+    
+    double gravity_time = 0, collision_time = 0, border_time = 0, update_time = 0;
+
+    // Physics substeps
+    for (int i = 0; i < substeps; i++)
+    {    
+        auto t1 = std::chrono::high_resolution_clock::now();
+        applyGravity();
+        auto t2 = std::chrono::high_resolution_clock::now();
+        
+        checkCollisionsGrid();
+        auto t3 = std::chrono::high_resolution_clock::now();
+        
+        applyBorder(); 
+        auto t4 = std::chrono::high_resolution_clock::now();
+        
+        updateObjectsGrid(substep_dt);
+        auto t5 = std::chrono::high_resolution_clock::now();
+        
+        gravity_time += std::chrono::duration<double, std::milli>(t2-t1).count();
+        collision_time += std::chrono::duration<double, std::milli>(t3-t2).count();
+        border_time += std::chrono::duration<double, std::milli>(t4-t3).count();
+        update_time += std::chrono::duration<double, std::milli>(t5-t4).count();
+    }
+    
+    auto frame_end = std::chrono::high_resolution_clock::now();
+    double total_frame = std::chrono::duration<double, std::milli>(frame_end - frame_start).count();
+    
+    static int frame_count = 0;
+    if (++frame_count % 60 == 0) {
+        int num_cells = window_size / gridsize;
+        std::cout << "\n=== GRID PERFORMANCE (" << objects.size() << " particles, " << substeps << " substeps, " << num_cells << "x" << num_cells << " grid) ===\n";
+        std::cout << "  Gravity:         " << gravity_time << " ms (" << substeps << " substeps)\n";
+        std::cout << "  Collisions:      " << collision_time << " ms (" << substeps << " substeps)\n";
+        std::cout << "  Border:          " << border_time << " ms (" << substeps << " substeps)\n";
+        std::cout << "  UpdateObjs:      " << update_time << " ms (" << substeps << " substeps)\n";
+        std::cout << "  ---\n";
+        std::cout << "  Measured Total:  " << (gravity_time + collision_time + border_time + update_time) << " ms\n";
+        std::cout << "  Actual Total:    " << total_frame << " ms\n";
+        std::cout << "  Overhead:        " << (total_frame - (gravity_time + collision_time + border_time + update_time)) << " ms\n\n";
+    }
+}
+
+void Solver::updateQuadtree()
 {
     auto frame_start = std::chrono::high_resolution_clock::now();
     
@@ -115,6 +176,25 @@ void Solver::updateObjects(float dt)
 {
     for (auto &particle : objects)
         particle.update(dt);
+}
+
+void Solver::updateObjectsGrid(float dt)
+{
+    for (auto& particle : objects)
+    {
+        int cur_gridx = particle.gridx, cur_gridy = particle.gridy; 
+        particle.update(dt);
+
+        particle.gridx = particle.m_position.x / gridsize;
+        particle.gridy = particle.m_position.y / gridsize;
+
+        if (cur_gridx != particle.gridx || cur_gridy != particle.gridy) 
+        {
+            auto pos = find(grid[cur_gridx][cur_gridy].begin(), grid[cur_gridx][cur_gridy].end(), particle.id);
+            grid[cur_gridx][cur_gridy].erase(pos);
+            grid[particle.gridx][particle.gridy].push_back(particle.id);
+        }
+    }    
 }
 
 void Solver::updateTree()
@@ -311,13 +391,20 @@ void Solver::checkCollisions(std::vector<std::pair<Particle*, Particle*>>& colli
         Particle* p_1 = pair.first;
         Particle* p_2 = pair.second;
 
-        Vec2 v = p_1->m_position - p_2->m_position;
+        float dx = p_1->m_position.x - p_2->m_position.x;
+        float dy = p_1->m_position.y - p_2->m_position.y;
+        
+        // calculate distance without sqrt cause I guess expensive??
+        float dist = dx * dx + dy * dy;
 
-        float distance = sqrt(v.x * v.x + v.y * v.y);
         float min_distance = p_1->m_radius + p_2->m_radius;
+        float min_distance2 = min_distance * min_distance;
 
-        if (distance < min_distance)
-        {
+
+        if (dist < min_distance2)
+        {	
+            Vec2 v = p_1->m_position - p_2->m_position;
+        	float distance = sqrt(v.x * v.x + v.y * v.y);
             Vec2 n = v / distance;
             float total_mass = p_1->m_radius * p_1->m_radius + p_2->m_radius * p_2->m_radius;
             float mass_ratio = (p_1->m_radius *  p_2->m_radius) / total_mass;
@@ -326,7 +413,104 @@ void Solver::checkCollisions(std::vector<std::pair<Particle*, Particle*>>& colli
             p_1->m_position += n * (1 - mass_ratio) * delta;
             p_2->m_position -= n * mass_ratio * delta;
 
-
         }
     }
+}
+
+
+void Solver::collideCells(int x1, int y1, int x2, int y2)
+{
+	auto& A = grid[x1][y1]; // vector
+	auto& B = grid[x2][y2]; // vector
+
+    // std::cout << "Colliding cells (" << x1 << ", " << y1 << ") and (" << x2 << ", " << y2 << "): "
+    //           << A.size() << " particles in A, " << B.size() << " particles in B.\n";
+
+	if (x1 == x2 && y1 == y2)
+	{
+		for (int i = 0; i < A.size();i++)
+		{
+			Particle* p_1 = &objects[A[i]]; 
+			for(int j = i+1; j < A.size();j++)
+			{
+				Particle* p_2 = &objects[A[j]];
+
+				computeCollision(p_1, p_2);	
+			}
+
+		}
+	}
+	else
+	{
+		for (int id_1 : A)
+		{
+			for (int id_2 : B)
+			{
+				Particle* p_1 = &objects[id_1];
+				Particle* p_2 = &objects[id_2];
+				computeCollision(p_1, p_2);
+			}
+		}
+	
+	}
+}
+
+
+void Solver::computeCollision(Particle* p_1, Particle* p_2)
+{
+	Vec2 v = p_1->m_position - p_2->m_position;
+
+	float dx = p_1->m_position.x - p_2->m_position.x;
+	float dy = p_1->m_position.y - p_2->m_position.y;
+
+	// calculate distance without sqrt cause I guess expensive??
+	float dist = dx * dx + dy * dy;
+
+	float min_distance = p_1->m_radius + p_2->m_radius;
+	float min_distance2 = min_distance * min_distance;
+
+
+	if (dist < min_distance2)
+	{	
+		float distance = sqrt(v.x * v.x + v.y * v.y);
+		Vec2 n = v / distance;
+		float delta = 0.5f * (min_distance - distance);
+
+		p_1->m_position += n * 0.5f * delta;
+		p_2->m_position -= n * 0.5f * delta;
+
+
+	}
+
+}
+void Solver::checkCollisionsGrid()
+{
+	int num_cells = window_size / gridsize;
+	int dx[] = {1, 1, 0, 0, -1};
+	int dy[] = {0, 1, 0, 1, 1};
+
+    int max_collisions = 0;
+    int checks = 0;
+	for(int r = 0; r < num_cells; r++)
+	{
+		for (int c = 0; c < num_cells; c++)
+		{
+            max_collisions = std::max(max_collisions, (int)grid[r][c].size());
+
+			if (!grid[r][c].size()) continue;
+			for (int k = 0; k < 5; k++)
+			{
+				int dr = r + dx[k], dc = c + dy[k];
+				if (dr < 0 || dc < 0 || dr >= num_cells || dc >= num_cells) continue;
+
+                checks += grid[r][c].size() * grid[r + dx[k]][c + dy[k]].size();
+				collideCells(r, c, dr, dc);
+
+			}
+		}
+	
+	}
+
+    std::cout << "Max particles in a cell: " << max_collisions << ", Total collision checks: " << checks << "\n";
+
 }

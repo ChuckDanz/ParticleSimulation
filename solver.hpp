@@ -24,6 +24,10 @@ private:
 
     static constexpr float window_size = 800.0f;
 
+ 
+
+  
+
     Vec2 boundary_center = Vec2{420.0f, 420.0f};
     float boundary_radius = 100.0f;
 
@@ -32,6 +36,7 @@ private:
     void applyGravity();
 
     void updateObjects(float dt);
+    void updateObjectsGrid(float dt);
 
     Vec2 calculateBounceBack(const Vec2& p_velocity, const Vec2& p_normal_col);
     
@@ -39,15 +44,24 @@ private:
 
     uint64_t mortonEncode(uint32_t x, uint32_t y);
 
+    void computeCollision(Particle* p_1, Particle* p_2);
+    void collideCells(int x1, int y1, int x2, int y2);
+
 public:
     Solver()
     {
         objects.reserve(3000);
     }
 
-    Particle& addObject(const Vec2& p_position, float radius);
+    static constexpr int gridsize = 10;
 
-    void update();
+    Particle& addObject(const Vec2& p_position, float radius);
+    Particle& addObjectGrid(const Vec2& p_position, float radius);
+
+    std::vector<int> grid[350][350];
+
+    void updateQuadtree();
+    void updateGrid();
 
     const std::vector<Particle>& getObjects() const;
 
@@ -70,6 +84,7 @@ public:
     void setObjectVelocity(Particle& particle, Vec2 v);
 
     void checkCollisions(std::vector<std::pair<Particle*, Particle*>>& collision_pairs);
+    void checkCollisionsGrid();
     
 
 

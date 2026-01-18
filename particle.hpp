@@ -17,15 +17,22 @@ private:
    
     sf::Color m_color;
 
+    
+
 public:
 
     Vec2 m_position; //displacement vector
     float m_radius = 1.0f;
+
+    int gridx = 0, gridy = 0, id = 0;
 	
     int index = 0;
 
     Particle();
     Particle(const Vec2& p_position, float p_radius);
+
+    Particle(const Vec2& p_position, float p_radius, int p_id, int p_gridx, int p_gridy);
+        
 
     void accelerate(const Vec2& p_acceleration);
 

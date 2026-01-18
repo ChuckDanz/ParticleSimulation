@@ -10,12 +10,27 @@ Particle::Particle(const Vec2& p_position, float p_radius)
     m_radius{p_radius}
 {}
 
+Particle::Particle(const Vec2& p_position, float p_radius, int p_gridx, int p_gridy, int p_id)
+    : m_position{p_position},
+    m_position_last{p_position},
+    m_acceleration{10.0f, 10.0f},
+    m_mass{1.0f},
+    id{p_id},
+    gridx{p_gridx},
+    gridy{p_gridy},
+    index{0},
+    m_radius{p_radius}
+{}
+
 void Particle::update(float dt)
 {
     Vec2 displacement = m_position - m_position_last;
     m_position_last = m_position;
     m_position = m_position + displacement + m_acceleration * (dt * dt);
     m_acceleration = {0.0f, 0.0f}; //reset acceleration
+
+    gridx = m_position.x / 15;
+    gridy = m_position.y / 15;
 }
 
 void Particle::accelerate(const Vec2& p_acceleration)

@@ -84,11 +84,10 @@ void subdivide(int node_i)
     float hw = nodes[node_i].half_W / 2.0f;
     float hh = nodes[node_i].half_H / 2.0f;
 
-    // DON'T get reference to 'n' until after ALL emplace_backs!
     
     // top left
     nodes.emplace_back(Node{x - hw, y - hh, hw, hh});
-    nodes[node_i].children[0] = nodes.size() - 1;  // Get FRESH reference each time
+    nodes[node_i].children[0] = nodes.size() - 1; 
 
     // top right
     nodes.emplace_back(Node{x + hw, y - hh, hw, hh});
@@ -139,14 +138,14 @@ void queryRange(Particle* p, int node_index, std::vector<Particle*>& node, std::
 
     if (n.children[0] == -1)
     {
-        if (n.children[0] == -1) {
-            for (int k = 0; k < n.count; ++k) {
-                int index = n.particles[k];
-                if (index >= min_index)
-                    node.push_back(&objects[index]);
-            }
-            return;
+
+        for (int k = 0; k < n.count; ++k) {
+            int index = n.particles[k];
+            if (index >= min_index)
+                node.push_back(&objects[index]);
         }
+        return;
+   
         //std::cout << nodes.size() << " Particles queried\n";
     }
     else
