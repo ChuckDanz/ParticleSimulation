@@ -29,7 +29,13 @@ void Solver::updateGrid()
     
     float substep_dt = dt / substeps;
     
-    double gravity_time = 0, collision_time = 0, border_time = 0, update_time = 0;
+    double sort_time = 0, gravity_time = 0, collision_time = 0, border_time = 0, update_time = 0;
+
+    // SPATIAL SORT - do once per frame, before substeps
+    //auto t_sort_start = std::chrono::high_resolution_clock::now();
+    //spatialSortGrid();
+    //auto t_sort_end = std::chrono::high_resolution_clock::now();
+    //sort_time = std::chrono::duration<double, std::milli>(t_sort_end - t_sort_start).count();
 
     // Physics substeps
     for (int i = 0; i < substeps; i++)
@@ -60,14 +66,15 @@ void Solver::updateGrid()
     if (++frame_count % 60 == 0) {
         int num_cells = window_size / gridsize;
         std::cout << "\n=== GRID PERFORMANCE (" << objects.size() << " particles, " << substeps << " substeps, " << num_cells << "x" << num_cells << " grid) ===\n";
+        std::cout << "  SpatialSort:     " << sort_time << " ms\n";
         std::cout << "  Gravity:         " << gravity_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  Collisions:      " << collision_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  Border:          " << border_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  UpdateObjs:      " << update_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  ---\n";
-        std::cout << "  Measured Total:  " << (gravity_time + collision_time + border_time + update_time) << " ms\n";
+        std::cout << "  Measured Total:  " << (sort_time + gravity_time + collision_time + border_time + update_time) << " ms\n";
         std::cout << "  Actual Total:    " << total_frame << " ms\n";
-        std::cout << "  Overhead:        " << (total_frame - (gravity_time + collision_time + border_time + update_time)) << " ms\n\n";
+        std::cout << "  Overhead:        " << (total_frame - (sort_time + gravity_time + collision_time + border_time + update_time)) << " ms\n\n";
     }
 }
 
@@ -224,7 +231,30 @@ void Solver::updateTree()
 //     }
 // }
 
+void Solver::spatialSortGrid()
+{
+    int num_cells = window_size / gridsize;
 
+    std::sort(objects.begin(), objects.end(), [this, num_cells](const Particle& a, const Particle& b) {
+        // Morton encode
+        uint64_t morton_a = mortonEncode(a.gridx, a.gridy);
+        uint64_t morton_b = mortonEncode(b.gridx, b.gridy);
+        
+        return morton_a < morton_b;
+    });
+
+    // Rebuild grid
+    for (int i = 0; i < num_cells; i++)
+        for (int j = 0; j < num_cells; j++)
+            grid[i][j].clear();
+    
+    for (size_t i = 0; i < objects.size(); ++i)
+    {
+        objects[i].id = i;
+        objects[i].index = i;
+        grid[objects[i].gridx][objects[i].gridy].push_back(i);
+    }
+}
 void Solver::spatialSort()
 {
     constexpr int GRID_SIZE = 512;

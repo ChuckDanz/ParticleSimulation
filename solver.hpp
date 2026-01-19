@@ -41,6 +41,7 @@ private:
     Vec2 calculateBounceBack(const Vec2& p_velocity, const Vec2& p_normal_col);
     
     void spatialSort();
+    void spatialSortGrid();
 
     uint64_t mortonEncode(uint32_t x, uint32_t y);
 

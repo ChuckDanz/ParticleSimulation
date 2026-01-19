@@ -25,7 +25,7 @@ int main()
     constexpr uint32_t window_height = 800;
 
     constexpr uint32_t max_objects = 8000;
-    constexpr float spawn_delay = 0.01f; //0.1f
+    constexpr float spawn_delay = 0.1f; //0.1f
 
     constexpr float RADIUS = 3.0f;
     
@@ -33,6 +33,7 @@ int main()
 
     bool showDebugGrid = true;  // Toggle grid visualization
     bool showCounts = false;     // Toggle particle count display
+	
 
 
     sf::RenderWindow window(sf::VideoMode({window_width, window_height}), "My window");
@@ -110,8 +111,8 @@ int main()
             Particle* particle = nullptr;
 
             if (COLLISION_TYPE == "QUADTREE") particle = &solver.addObject(Vec2{420.0f, 100.0f}, RADIUS);
-            else if (COLLISION_TYPE == "GRID") particle = &solver.addObjectGrid(Vec2{420.0f, 100.0f}, RADIUS);
-            float angle = M_PI * 0.5f + max_angle * sin(3.0f * t);
+            else if (COLLISION_TYPE == "GRID") particle = &solver.addObjectGrid(Vec2{10.0f, 10.0f}, RADIUS);
+            float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
 
             particle->setColor(getColor(t));
             
@@ -140,7 +141,7 @@ int main()
             
             fpstimer.restart();
             window.clear(sf::Color::White);
-            renderWithDebug(window, solver, false);
+            renderWithDebug(window, solver, showDebugGrid);
             float render_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
 
             sf::Text number(arialFont);
