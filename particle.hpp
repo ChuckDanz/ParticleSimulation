@@ -15,8 +15,8 @@ private:
 
     float m_mass;
    
-    sf::Color m_color;
 
+    sf::Color m_color;
     
 
 public:

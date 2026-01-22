@@ -14,7 +14,6 @@
 class Solver
 {
 private:
-    std::vector<Particle> objects;
 
    
 
@@ -72,6 +71,7 @@ public:
     }
 
    
+    std::vector<Particle> objects;
 
     Particle& addObject(const Vec2& p_position, float radius);
     Particle& addObjectGrid(const Vec2& p_position, float radius);

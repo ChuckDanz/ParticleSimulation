@@ -68,6 +68,7 @@ int main()
     std::cout << "Worker Threads: " << worker_threads;
     Threader threadPool(10);
     Solver solver(window_width, window_height, RADIUS, threadPool);
+    Renderer renderer(window, solver, threadPool);
     
 
     // circular boundary stuff
@@ -118,10 +119,10 @@ int main()
             float t = globalClock.getElapsedTime().asSeconds();
             Particle* particle = nullptr;
 
-            if (COLLISION_TYPE == "QUADTREE")
+        if (COLLISION_TYPE == "QUADTREE")
 	    {
-	            particle = &solver.addObject(Vec2{420.0f, 100.0f}, RADIUS);
-	            float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
+	        particle = &solver.addObject(Vec2{420.0f, 100.0f}, RADIUS);
+	        float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
 
 		    particle->setColor(getColor(t));
 			    
@@ -133,7 +134,7 @@ int main()
 		    for (int i = 0; i < SPAWNPOINTS; i++)
 		    {
 
-		            particle = &solver.addObjectGrid(Vec2{420.0f, 100.0f + 40.0f * i}, RADIUS);
+		        particle = &solver.addObjectGrid(Vec2{420.0f, 100.0f + 40.0f * i}, RADIUS);
 			    float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
 
 			    particle->setColor(getColor(t));
@@ -169,7 +170,7 @@ int main()
             
             fpstimer.restart();
             window.clear(sf::Color::White);
-            renderWithDebug(window, solver, showDebugGrid);
+            renderer.renderWithDebug(window, solver, showDebugGrid);
             float render_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
 
             sf::Text number(arialFont);
@@ -196,11 +197,11 @@ int main()
             // Render with grid debug overlay
             if (showCounts)
             {
-                renderWithGrid(window, solver, window_width, solver.gridsize, showDebugGrid);
+                renderer.renderWithGrid(window, solver, window_width, solver.gridsize, showDebugGrid);
             }
             else
             {
-                renderWithGrid(window, solver, window_width, solver.gridsize, showDebugGrid);
+                renderer.renderWithGrid(window, solver, window_width, solver.gridsize, showDebugGrid);
             }
             
             float render_ms = fpstimer.getElapsedTime().asMicroseconds() / 1000.0f;
