@@ -8,6 +8,7 @@
 #include <algorithm>
 #include "particle.hpp"
 #include "quadtree.hpp"
+#include "thread.hpp"
 
 
 class Solver
@@ -23,9 +24,10 @@ private:
     static constexpr int substeps = 8; 
 
     static constexpr float window_size = 800.0f;
-
+    float window_width = 800.0f;
+    float window_height = 800.0f;
  
-
+    Threader& threader;
   
 
     Vec2 boundary_center = Vec2{420.0f, 420.0f};
@@ -34,6 +36,7 @@ private:
     float boundary_attributes[3] = {0.0f, 0.0f, 0.0f}; // x, y, radius
 
     void applyGravity();
+    void updateGravityThreaded(int start, int end);
 
     void updateObjects(float dt);
     void updateObjectsGrid(float dt);
@@ -49,20 +52,36 @@ private:
     void collideCells(int x1, int y1, int x2, int y2);
 
 public:
-    Solver()
+    Solver(float width, float height, float radius, Threader& threader_) :
+	    window_width{width},
+	    window_height{height},
+	    gridsize{10}, //radius * 2.0f
+	    threader{threader_}
     {
-        objects.reserve(3000);
+	
+    	objects.reserve(3000);
     }
 
-    static constexpr int gridsize = 10;
+    virtual ~Solver()
+    {
+    	for (Thread& thread : threader.threads)
+	{
+		thread.stop();
+	}
+    
+    }
+
+   
 
     Particle& addObject(const Vec2& p_position, float radius);
     Particle& addObjectGrid(const Vec2& p_position, float radius);
 
     std::vector<int> grid[350][350];
+    int gridsize = 10;
 
     void updateQuadtree();
     void updateGrid();
+    void updateGridPos();
 
     const std::vector<Particle>& getObjects() const;
 
@@ -84,8 +103,12 @@ public:
 
     void setObjectVelocity(Particle& particle, Vec2 v);
 
+    void updateObjectsThreaded(int start, int end, float dt);
+    void updateObjectsThreader(float dt);
+
     void checkCollisions(std::vector<std::pair<Particle*, Particle*>>& collision_pairs);
     void checkCollisionsGrid();
+    void checkCollisionsSlice(int lcol, int rcol);
     
 
 

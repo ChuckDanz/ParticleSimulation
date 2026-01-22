@@ -24,12 +24,14 @@ int main()
     constexpr uint32_t window_width = 800;
     constexpr uint32_t window_height = 800;
 
-    constexpr uint32_t max_objects = 8000;
-    constexpr float spawn_delay = 0.1f; //0.1f
+    constexpr uint32_t max_objects = 20000;
+    constexpr float spawn_delay = 0.01f; //0.1f
 
     constexpr float RADIUS = 3.0f;
     
     const std::string COLLISION_TYPE = "GRID"; //GRID or QUADTREE 
+    
+    unsigned int SPAWNPOINTS = 5;
 
     bool showDebugGrid = true;  // Toggle grid visualization
     bool showCounts = false;     // Toggle particle count display
@@ -37,6 +39,10 @@ int main()
 
 
     sf::RenderWindow window(sf::VideoMode({window_width, window_height}), "My window");
+
+    int window_x = window_width / 2;
+    int window_y = window_height / 2;
+    window.setPosition(sf::Vector2i(window_x, window_y));
 
     sf::Clock globalClock;
     sf::Clock clock;
@@ -58,8 +64,10 @@ int main()
     window.setFramerateLimit(frame_rate);
 
     // run the program as long as the window is open
-
-    Solver solver;
+    unsigned int worker_threads = std::max(1u, std::thread::hardware_concurrency() - 2);
+    std::cout << "Worker Threads: " << worker_threads;
+    Threader threadPool(10);
+    Solver solver(window_width, window_height, RADIUS, threadPool);
     
 
     // circular boundary stuff
@@ -110,13 +118,33 @@ int main()
             float t = globalClock.getElapsedTime().asSeconds();
             Particle* particle = nullptr;
 
-            if (COLLISION_TYPE == "QUADTREE") particle = &solver.addObject(Vec2{420.0f, 100.0f}, RADIUS);
-            else if (COLLISION_TYPE == "GRID") particle = &solver.addObjectGrid(Vec2{10.0f, 10.0f}, RADIUS);
-            float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
+            if (COLLISION_TYPE == "QUADTREE")
+	    {
+	            particle = &solver.addObject(Vec2{420.0f, 100.0f}, RADIUS);
+	            float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
 
-            particle->setColor(getColor(t));
-            
-            solver.setObjectVelocity(*particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
+		    particle->setColor(getColor(t));
+			    
+		    solver.setObjectVelocity(*particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
+
+	    }
+	    else if (COLLISION_TYPE == "GRID") 
+	    {
+		    for (int i = 0; i < SPAWNPOINTS; i++)
+		    {
+
+		            particle = &solver.addObjectGrid(Vec2{420.0f, 100.0f + 40.0f * i}, RADIUS);
+			    float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
+
+			    particle->setColor(getColor(t));
+			    
+
+			    solver.setObjectVelocity(*particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
+		    	    
+		    } 
+	    
+	    }
+
             clock.restart();
         }
 
