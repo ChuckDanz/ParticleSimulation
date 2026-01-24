@@ -22,7 +22,7 @@ private:
 
     static constexpr int substeps = 8; 
 
-    static constexpr float window_size = 800.0f;
+    float window_size = 800.0f;
     float window_width = 800.0f;
     float window_height = 800.0f;
  
@@ -54,6 +54,7 @@ public:
     Solver(float width, float height, float radius, Threader& threader_) :
 	    window_width{width},
 	    window_height{height},
+        window_size{std::min(width, height)},
 	    gridsize{10}, //radius * 2.0f
 	    threader{threader_}
     {
@@ -76,7 +77,7 @@ public:
     Particle& addObject(const Vec2& p_position, float radius);
     Particle& addObjectGrid(const Vec2& p_position, float radius);
 
-    std::vector<int> grid[350][350];
+    std::vector<int> grid[80][80];
     int gridsize = 10;
 
     void updateQuadtree();

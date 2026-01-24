@@ -24,14 +24,14 @@ int main()
     constexpr uint32_t window_width = 800;
     constexpr uint32_t window_height = 800;
 
-    constexpr uint32_t max_objects = 20000;
+    constexpr uint32_t max_objects = 100000;
     constexpr float spawn_delay = 0.01f; //0.1f
 
-    constexpr float RADIUS = 3.0f;
+    constexpr float RADIUS = 2.0f;
     
     const std::string COLLISION_TYPE = "GRID"; //GRID or QUADTREE 
     
-    unsigned int SPAWNPOINTS = 5;
+    unsigned int SPAWNPOINTS = 10;
 
     bool showDebugGrid = true;  // Toggle grid visualization
     bool showCounts = false;     // Toggle particle count display

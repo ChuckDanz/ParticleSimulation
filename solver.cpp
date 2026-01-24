@@ -566,7 +566,7 @@ void Solver::computeCollision(Particle* p_1, Particle* p_2)
 	{	
 		float distance = sqrt(v.x * v.x + v.y * v.y);
 		Vec2 n = v / distance;
-		float delta = 0.5f * (min_distance - distance);
+		float delta = 0.75f * (min_distance - distance); //was 0.5f
 
 		p_1->m_position += n * 0.5f * delta;
 		p_2->m_position -= n * 0.5f * delta;
