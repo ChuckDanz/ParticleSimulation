@@ -27,9 +27,9 @@ void Solver::updateGrid()
 {
     auto frame_start = std::chrono::high_resolution_clock::now();
     
-    float substep_dt = dt / substeps;
+    float substep_dt = 1.0f / (60 * 8);
     
-    double sort_time = 0, gravity_time = 0, collision_time = 0, border_time = 0, update_time = 0;
+    double sort_time = 0, gravity_time = 0, collision_time = 0, border_time = 0, update_time = 0, gridupdate_time = 0;
 
     // SPATIAL SORT - do once per frame, before substeps
     //auto t_sort_start = std::chrono::high_resolution_clock::now();
@@ -54,10 +54,13 @@ void Solver::updateGrid()
         auto t5 = std::chrono::high_resolution_clock::now();
        
         updateGridPos();	
+        auto t6 = std::chrono::high_resolution_clock::now();
+
         gravity_time += std::chrono::duration<double, std::milli>(t2-t1).count();
         collision_time += std::chrono::duration<double, std::milli>(t3-t2).count();
         border_time += std::chrono::duration<double, std::milli>(t4-t3).count();
         update_time += std::chrono::duration<double, std::milli>(t5-t4).count();
+        gridupdate_time += std::chrono::duration<double, std::milli>(t6-t5).count();
     }
     
     auto frame_end = std::chrono::high_resolution_clock::now();
@@ -72,10 +75,11 @@ void Solver::updateGrid()
         std::cout << "  Collisions:      " << collision_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  Border:          " << border_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  UpdateObjs:      " << update_time << " ms (" << substeps << " substeps)\n";
+        std::cout << "  UpdateGridPos:   " << gridupdate_time << " ms (" << substeps << " substeps)\n";
         std::cout << "  ---\n";
-        std::cout << "  Measured Total:  " << (sort_time + gravity_time + collision_time + border_time + update_time) << " ms\n";
+        std::cout << "  Measured Total:  " << (sort_time + gravity_time + collision_time + border_time + update_time + gridupdate_time) << " ms\n";
         std::cout << "  Actual Total:    " << total_frame << " ms\n";
-        std::cout << "  Overhead:        " << (total_frame - (sort_time + gravity_time + collision_time + border_time + update_time)) << " ms\n\n";
+        std::cout << "  Overhead:        " << (total_frame - (sort_time + gravity_time + collision_time + border_time + update_time + gridupdate_time)) << " ms\n\n";
     }
 }
 
@@ -182,6 +186,8 @@ void Solver::applyGravity()
             });
 }
 
+
+
 void Solver::updateGravityThreaded(int start, int end)
 {
     for (int i = start; i < end; i++)
@@ -225,22 +231,21 @@ void Solver::updateObjectsGrid(float dt)
 void Solver::updateGridPos()
 {
 	int num_cells_width = window_width / gridsize;
-	int num_cells_height = window_height / gridsize;
+    int num_cells_height = window_height / gridsize;
 
-	for (int i = 0; i < num_cells_width; i++)
-	{
-		for (int j = 0; j < num_cells_height; j++)
-		{
-			grid[i][j].clear();
-		}
-	}
+    // Parallel clear (safe)
+    threader.parallel(num_cells_width, [&](int start, int end) {
+        for (int i = start; i < end; i++)
+            for (int j = 0; j < num_cells_height; j++)
+                grid[i][j].clear(); // clear is pretty expensive
+    });
 
-	for (Particle& p : objects)
-	{
-		if (p.gridx < 0 || p.gridy < 0 || p.gridx >= num_cells_width || p.gridy >= num_cells_height) continue;
-		grid[p.gridx][p.gridy].push_back(p.id);
-	}
-
+    // Sequential insert (required for correctness)
+    for (Particle& p : objects)
+    {
+        if (p.gridx < 0 || p.gridy < 0 || p.gridx >= num_cells_width || p.gridy >= num_cells_height) continue;
+        grid[p.gridx][p.gridy].push_back(p.id);
+    }
 }
 
 
@@ -400,33 +405,37 @@ void Solver::applyBoundary()
 //for circle boundary
 void Solver::applyBorder()
 {
-    for (auto &particle : objects)
+    threader.parallel(objects.size(), [&](int start, int end) {
+            for (int i = start; i < end; i++) applyBorderThreaded(i);
+        });
+}
+
+void Solver::applyBorderThreaded(int index)
+{
+    Particle& particle = objects[index];
+    const float dampening = 0.75f;
+    const Vec2 pos = particle.m_position;
+
+    Vec2 npos = particle.m_position;
+    Vec2 vel = particle.getVelocity();
+    Vec2 dy = {vel.x * dampening, -vel.y};
+    Vec2 dx = {-vel.x * dampening, vel.y};
+
+    if (pos.x < particle.m_radius || pos.x + particle.m_radius > window_size) // reflect off left/right
     {
-        const float dampening = 0.75f;
-        const Vec2 pos = particle.m_position;
-
-        Vec2 npos = particle.m_position;
-        Vec2 vel = particle.getVelocity();
-        Vec2 dy = {vel.x * dampening, -vel.y};
-        Vec2 dx = {-vel.x * dampening, vel.y};
-
-        if (pos.x < particle.m_radius || pos.x + particle.m_radius > window_size) // reflect off left/right
-        {
-            if (pos.x < particle.m_radius) npos.x = particle.m_radius;
-            if (pos.x + particle.m_radius > window_size) npos.x = window_size - particle.m_radius;
-            particle.m_position = npos;
-            particle.setVelocity(dx, 1.0);
-        }
-        if (pos.y < particle.m_radius || pos.y + particle.m_radius > window_size) //reflect off top and bottom
-        {
-            if (pos.y < particle.m_radius) npos.y = particle.m_radius;
-            if (pos.y + particle.m_radius > window_size) npos.y = window_size - particle.m_radius;
-            particle.m_position = npos;
-            particle.setVelocity(dy, 1.0);
-        }
-        
-
+        if (pos.x < particle.m_radius) npos.x = particle.m_radius;
+        if (pos.x + particle.m_radius > window_size) npos.x = window_size - particle.m_radius;
+        particle.m_position = npos;
+        particle.setVelocity(dx, 1.0);
     }
+    if (pos.y < particle.m_radius || pos.y + particle.m_radius > window_size) //reflect off top and bottom
+    {
+        if (pos.y < particle.m_radius) npos.y = particle.m_radius;
+        if (pos.y + particle.m_radius > window_size) npos.y = window_size - particle.m_radius;
+        particle.m_position = npos;
+        particle.setVelocity(dy, 1.0);
+    }
+    
 }
 
 Vec2 Solver::calculateBounceBack(const Vec2& p_velocity, const Vec2& p_normal_col)
@@ -550,7 +559,7 @@ void Solver::collideCells(int x1, int y1, int x2, int y2)
 
 void Solver::computeCollision(Particle* p_1, Particle* p_2)
 {
-	Vec2 v = p_1->m_position - p_2->m_position;
+    Vec2 v = p_1->m_position - p_2->m_position;
 
 	float dx = p_1->m_position.x - p_2->m_position.x;
 	float dy = p_1->m_position.y - p_2->m_position.y;
@@ -565,12 +574,12 @@ void Solver::computeCollision(Particle* p_1, Particle* p_2)
 	if (dist < min_distance2)
 	{	
 		float distance = sqrt(v.x * v.x + v.y * v.y);
-		Vec2 n = v / distance;
-		float delta = 0.75f * (min_distance - distance); //was 0.5f
+		
+		float delta = 0.25f * (min_distance - distance); //was 0.5f
+        Vec2 n = v / distance * delta;
 
-		p_1->m_position += n * 0.5f * delta;
-		p_2->m_position -= n * 0.5f * delta;
-
+		p_1->m_position += n;
+		p_2->m_position -= n;
 
 	}
 
@@ -603,7 +612,7 @@ void Solver::checkCollisionsSlice(int lcol, int rcol)
 void Solver::checkCollisionsGrid()
 {
 	int num_cells = window_width / gridsize;
-	int slice_count = threader.num_threads * 2;
+	int slice_count = threader.num_threads * 2; // * 2
 	int slice_size = num_cells / slice_count;
 
 	//left pass

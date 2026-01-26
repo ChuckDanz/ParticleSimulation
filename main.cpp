@@ -2,6 +2,9 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/System/Clock.hpp>
 #include <string>
+#include <fstream>
+#include <unordered_map>
+#include <filesystem>
 #include "renderer.hpp"
 
 static sf::Color getColor(float t)
@@ -14,6 +17,35 @@ static sf::Color getColor(float t)
             static_cast<uint8_t>(255.0f * b * b)};
 }
 
+void saveParticles(const std::vector<Particle>& objects, const std::string& filename)
+{
+    std::ofstream file(filename);
+    
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << filename << std::endl;
+        return;
+    }
+    
+    // Write header (optional, helps Python parse)
+    file << objects.size() << "\n";
+    
+    // Write each particle: id, x, y, r, g, b
+    for (const Particle& p : objects)
+    {
+        sf::Color c = p.getColor();
+        file << p.id << " " 
+             << p.m_position.x << " " 
+             << p.m_position.y << " "
+             << (int)c.r << " " 
+             << (int)c.g << " " 
+             << (int)c.b << "\n";
+    }
+    
+    file.close();
+    std::cout << "Saved " << objects.size() << " particles to " << filename << "\n";
+}
+
+
 int main()
 {
 
@@ -24,7 +56,7 @@ int main()
     constexpr uint32_t window_width = 800;
     constexpr uint32_t window_height = 800;
 
-    constexpr uint32_t max_objects = 100000;
+    constexpr uint32_t max_objects = 53000;
     constexpr float spawn_delay = 0.01f; //0.1f
 
     constexpr float RADIUS = 2.0f;
@@ -35,7 +67,8 @@ int main()
 
     bool showDebugGrid = true;  // Toggle grid visualization
     bool showCounts = false;     // Toggle particle count display
-	
+
+	bool recordPositions = true;
 
 
     sf::RenderWindow window(sf::VideoMode({window_width, window_height}), "My window");
@@ -69,7 +102,24 @@ int main()
     Threader threadPool(10);
     Solver solver(window_width, window_height, RADIUS, threadPool);
     Renderer renderer(window, solver, threadPool);
-    
+
+    std::unordered_map<int, sf::Color> loadedColors;  // Dictionary: particle ID → color
+    bool useCustomColors = std::filesystem::exists("./colors.txt");
+    std::cout << "\nUsing custom colors: " << (useCustomColors ? "YES" : "NO") << std::endl;
+
+    // Actually load the colors into the map!
+    if (useCustomColors)
+    {
+        std::ifstream colorFile("./colors.txt");
+        int id, r, g, b;
+        while (colorFile >> id >> r >> g >> b)
+        {
+            loadedColors[id] = sf::Color(r, g, b);
+        }
+        colorFile.close();
+        std::cout << "Loaded " << loadedColors.size() << " colors from colors.txt\n";
+    }
+
 
     // circular boundary stuff
     //solver.setBoundary(Vec2{window_width / 2.0f, window_height / 2.0f}, (window_width - 250.0f) / 2.0f);
@@ -119,36 +169,48 @@ int main()
             float t = globalClock.getElapsedTime().asSeconds();
             Particle* particle = nullptr;
 
-        if (COLLISION_TYPE == "QUADTREE")
-	    {
-	        particle = &solver.addObject(Vec2{420.0f, 100.0f}, RADIUS);
-	        float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
+            if (COLLISION_TYPE == "QUADTREE")
+            {
+                particle = &solver.addObject(Vec2{420.0f, 100.0f}, RADIUS);
+                float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
 
-		    particle->setColor(getColor(t));
-			    
-		    solver.setObjectVelocity(*particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
+                particle->setColor(getColor(t));
+                    
+                solver.setObjectVelocity(*particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
 
-	    }
-	    else if (COLLISION_TYPE == "GRID") 
-	    {
-		    for (int i = 0; i < SPAWNPOINTS; i++)
-		    {
+            }
+            else if (COLLISION_TYPE == "GRID") 
+            {
+                for (int i = 0; i < SPAWNPOINTS; i++)
+                {
 
-		        particle = &solver.addObjectGrid(Vec2{420.0f, 100.0f + 40.0f * i}, RADIUS);
-			    float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
+                    particle = &solver.addObjectGrid(Vec2{420.0f, 100.0f + 40.0f * i}, RADIUS);
+                    float angle = M_PI * 0.5f + max_angle * sin(3.0f); // (* t in sin) for variation over time
 
-			    particle->setColor(getColor(t));
-			    
+                    if (useCustomColors && loadedColors.count(particle->id)) {
+                        particle->setColor(loadedColors[particle->id]);
+                    } else {
+                        particle->setColor(getColor(t));
+                    }
+                    
 
-			    solver.setObjectVelocity(*particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
-		    	    
-		    } 
-	    
-	    }
+                    solver.setObjectVelocity(*particle, spawn_velocity * Vec2{cos(angle), sin(angle)});
+                        
+                } 
+            
+            }
+
+    
 
             clock.restart();
         }
-
+        
+        if (recordPositions && solver.getObjects().size() >= max_objects)
+        {
+            saveParticles(solver.getObjects(), "./particles2.txt");
+            recordPositions = false;
+        }
+        
         if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
         {
             float ratio = 840.0f / window.getSize().x;
@@ -223,4 +285,6 @@ int main()
 
     return 0;
 }
+
+
 

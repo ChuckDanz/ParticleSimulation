@@ -15,10 +15,10 @@ class Solver
 {
 private:
 
-   
+   // MAIN PROBLEM IS THAT WHEN THERE ARE TOO MANY PARTICLES ON TOP OF EACH OTHER THE BOTTOM ONES MERGE WITH EACH OTHER WE NEED SOME WAY TO DAMPEN THE 
 
     static constexpr float dt = 1.0f / 60;
-    static constexpr Vec2 gravity = Vec2(0.0f, 9.81f * 50.0f);
+    static constexpr Vec2 gravity = Vec2(0.0f, 9.81f * 25.0f);
 
     static constexpr int substeps = 8; 
 
@@ -55,7 +55,7 @@ public:
 	    window_width{width},
 	    window_height{height},
         window_size{std::min(width, height)},
-	    gridsize{10}, //radius * 2.0f
+	    gridsize{static_cast<int>(radius * 2.0f)}, //radius * 2.0f
 	    threader{threader_}
     {
 	
@@ -77,8 +77,8 @@ public:
     Particle& addObject(const Vec2& p_position, float radius);
     Particle& addObjectGrid(const Vec2& p_position, float radius);
 
-    std::vector<int> grid[80][80];
-    int gridsize = 10;
+    std::vector<int> grid[350][350];
+    int gridsize = 5;
 
     void updateQuadtree();
     void updateGrid();
@@ -91,6 +91,7 @@ public:
 
     //this is for the borders of the window
     void applyBorder();
+    void applyBorderThreaded(int index);
 
     void updateTree();
 

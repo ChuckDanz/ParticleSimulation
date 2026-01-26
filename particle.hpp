@@ -10,8 +10,7 @@
 class Particle
 {
 private:
-    Vec2 m_position_last;
-    Vec2 m_acceleration;
+    
 
     float m_mass;
    
@@ -21,6 +20,8 @@ private:
 
 public:
 
+    Vec2 m_position_last;
+    Vec2 m_acceleration;
     Vec2 m_position; //displacement vector
     float m_radius = 1.0f;
 

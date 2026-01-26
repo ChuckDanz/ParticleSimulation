@@ -37,7 +37,7 @@ struct TaskQueue
 	}
 
 	//instead of idling and wasting cpu, use a condition variable to change the task based on state not waiting for workers to finish
-	void waitUntilDone() 
+	void waitUntilDone()  const
 	{
 		while(remaining_tasks > 0)
 		{
