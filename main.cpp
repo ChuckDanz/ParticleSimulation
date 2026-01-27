@@ -104,13 +104,15 @@ int main()
     Renderer renderer(window, solver, threadPool);
 
     std::unordered_map<int, sf::Color> loadedColors;  // Dictionary: particle ID → color
-    bool useCustomColors = std::filesystem::exists("./colors.txt");
+
+    std::string colorFilePath = "./colors.txt";
+    bool useCustomColors = std::filesystem::exists(colorFilePath);
     std::cout << "\nUsing custom colors: " << (useCustomColors ? "YES" : "NO") << std::endl;
 
     // Actually load the colors into the map!
     if (useCustomColors)
     {
-        std::ifstream colorFile("./colors.txt");
+        std::ifstream colorFile(colorFilePath);
         int id, r, g, b;
         while (colorFile >> id >> r >> g >> b)
         {
