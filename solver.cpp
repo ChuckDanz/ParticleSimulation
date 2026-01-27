@@ -44,7 +44,7 @@ void Solver::updateGrid()
         applyGravity();
         auto t2 = std::chrono::high_resolution_clock::now();
         
-        checkCollisionsGrid();
+        checkCollisionsGridFlat();
         auto t3 = std::chrono::high_resolution_clock::now();
         
         applyBorder(); 
@@ -53,7 +53,7 @@ void Solver::updateGrid()
         updateObjectsThreader(substep_dt);
         auto t5 = std::chrono::high_resolution_clock::now();
        
-        updateGridPos();	
+        updateGridPosFlat();	
         auto t6 = std::chrono::high_resolution_clock::now();
 
         gravity_time += std::chrono::duration<double, std::milli>(t2-t1).count();
@@ -230,8 +230,6 @@ void Solver::updateObjectsGrid(float dt)
 
 void Solver::updateGridPos()
 {
-	int num_cells_width = window_width / gridsize;
-    int num_cells_height = window_height / gridsize;
 
     // Parallel clear (safe)
     threader.parallel(num_cells_width, [&](int start, int end) {
@@ -650,11 +648,137 @@ void Solver::checkCollisionsGrid()
 }
 
 
+void Solver::updateGridPosFlat()
+{
+	std::fill(cell_counts.begin(), cell_counts.end(), 0);
+
+	for(auto& p : objects)
+	{
+
+		int cell_index = p.gridx * num_cells_height + p.gridy;
+		cell_counts[cell_index]++;
+	}
+
+	cell_offsets[0] = 0;
+	for (int i = 1; i < cell_counts.size(); i++)
+	{
+		cell_offsets[i] = cell_offsets[i - 1] + cell_counts[i - 1];
+	}
+
+	std::fill(cell_counts.begin(), cell_counts.end(), 0);
+
+	for (auto& p : objects)
+	{
+
+		int cell_index = p.gridx * num_cells_height + p.gridy;
+		int write_pos = cell_offsets[cell_index] + cell_counts[cell_index];
+		grid_flat[write_pos] = p.id;
+		cell_counts[cell_index]++;
+	}
+}
+
+void Solver::checkCollisionsSliceFlat(int lcol, int rcol)
+{
+	int dx[] = {1, 1, 0, 0, -1};
+	int dy[] = {0, 1, 0, 1, 1};
+	for (int i = lcol; i < rcol; i++)
+	{
+		for (int j = 0; j < num_cells_height; j++)
+		{
+			int cell = i * num_cells_height + j;
+			if (cell_offsets[cell] == cell_offsets[cell + 1]) continue; // Empty cell
+			for (int k = 0; k < 5; k++)
+			{
+				int dr = i + dx[k], dc = j + dy[k];
+				if (dr < 0 || dc < 0 || dr >= num_cells_width || dc >= num_cells_height) continue;
+				collideCellsFlat(i, j, dr, dc);
+			}
+		}
+	}
+}
+
+void Solver::collideCellsFlat(int x1, int y1, int x2, int y2)
+{
+	int CellA = x1 * num_cells_height + y1;
+	int CellB = x2 * num_cells_height + y2;
+
+	int StartA = cell_offsets[CellA];
+	int EndA = cell_offsets[CellA + 1];
+
+	int StartB = cell_offsets[CellB];
+	int EndB = cell_offsets[CellB + 1];
+	
 
 
+	if (x1 == x2 && y1 == y2)
+	{
+		for (int i = StartA; i < EndA; i++)
+		{
+			Particle* p_1 = &objects[grid_flat[i]]; 
+			for(int j = i+1; j < EndA; j++)
+			{
+				Particle* p_2 = &objects[grid_flat[j]];
 
+				computeCollision(p_1, p_2);	
+			}
 
+		}
+	}
+	else
+	{	
+		for (int i = StartA; i < EndA; i++)
+		{
+			Particle* p_1 = &objects[grid_flat[i]]; 
+			for(int j = StartB; j < EndB; j++)
+			{
+				Particle* p_2 = &objects[grid_flat[j]];
 
+				computeCollision(p_1, p_2);	
+			}
+
+		}
+	}
+}
+
+void Solver::checkCollisionsGridFlat()
+{
+	int num_cells = window_width / gridsize;
+	int slice_count = threader.num_threads * 2; // * 2
+	int slice_size = num_cells / slice_count;
+
+	//left pass
+	for (int i = 0; i < threader.num_threads; i++)
+	{
+		threader.t_queue.addTask([this, i, slice_size]
+				{
+					int start = (i * 2) * slice_size;
+					int end = start + slice_size;
+					checkCollisionsSliceFlat(start, end);	
+				
+				});
+	}
+
+	// case for left over slices
+	if (slice_count * slice_size < num_cells)
+	{
+		threader.t_queue.addTask([this, slice_count, slice_size, num_cells]
+				{
+					checkCollisionsSliceFlat(slice_count * slice_size, num_cells);
+				});
+	}
+	threader.t_queue.waitUntilDone();
+	// right pass
+	for (int i = 0; i < threader.num_threads; i++)
+	{
+		threader.t_queue.addTask([this, i, slice_size]
+				{
+					int start = (1 + i * 2) * slice_size;
+					int end = start + slice_size;
+					checkCollisionsSliceFlat(start, end);
+				});
+	}
+	threader.t_queue.waitUntilDone();
+}
 
 
 

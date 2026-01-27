@@ -49,17 +49,25 @@ private:
 
     void computeCollision(Particle* p_1, Particle* p_2);
     void collideCells(int x1, int y1, int x2, int y2);
-
+    
+    int num_cells_height = 0;
+    int num_cells_width = 0;
 public:
     Solver(float width, float height, float radius, Threader& threader_) :
 	    window_width{width},
 	    window_height{height},
         window_size{std::min(width, height)},
 	    gridsize{static_cast<int>(radius * 2.0f)}, //radius * 2.0f
-	    threader{threader_}
+	    threader{threader_},
+	    num_cells_width{static_cast<int>(window_width / (radius * 2.0f))},
+	    num_cells_height{static_cast<int>(window_height / (radius * 2.0f))}
     {
-	
+
     	objects.reserve(3000);
+        int num_cells = num_cells_width * num_cells_height;
+        cell_counts.resize(num_cells, 0);
+        cell_offsets.resize(num_cells + 1, 0);
+        grid_flat.resize(100000); //update to use constructor parameter later
     }
 
     virtual ~Solver()
@@ -79,6 +87,15 @@ public:
 
     std::vector<int> grid[350][350];
     int gridsize = 5;
+    
+    std::vector<int> grid_flat;
+    std::vector<int> cell_offsets;
+    std::vector<int> cell_counts;
+
+    void updateGridPosFlat();
+    void collideCellsFlat(int x1, int y1, int x2, int y2);
+    void checkCollisionsSliceFlat(int lcol, int rcol);
+    void checkCollisionsGridFlat();
 
     void updateQuadtree();
     void updateGrid();
