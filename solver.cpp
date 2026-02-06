@@ -654,7 +654,8 @@ void Solver::updateGridPosFlat()
 
 	for(auto& p : objects)
 	{
-
+		p.gridx = std::max(0, std::min(num_cells_width - 1, p.gridx));
+		p.gridy = std::max(0, std::min(num_cells_height - 1, p.gridy));
 		int cell_index = p.gridx * num_cells_height + p.gridy;
 		cell_counts[cell_index]++;
 	}
@@ -669,7 +670,6 @@ void Solver::updateGridPosFlat()
 
 	for (auto& p : objects)
 	{
-
 		int cell_index = p.gridx * num_cells_height + p.gridy;
 		int write_pos = cell_offsets[cell_index] + cell_counts[cell_index];
 		grid_flat[write_pos] = p.id;

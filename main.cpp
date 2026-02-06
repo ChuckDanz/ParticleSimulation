@@ -105,7 +105,7 @@ int main()
 
     std::unordered_map<int, sf::Color> loadedColors;  // Dictionary: particle ID → color
 
-    std::string colorFilePath = "./colors.txt";
+    std::string colorFilePath = "./Vector.txt";
     bool useCustomColors = std::filesystem::exists(colorFilePath);
     std::cout << "\nUsing custom colors: " << (useCustomColors ? "YES" : "NO") << std::endl;
 
