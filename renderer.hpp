@@ -82,47 +82,6 @@ public:
             }
         });
 
-        // dot_va.resize(solver.dot_obstacles.size() * 4);
-        // for (int i = 0; i < solver.dot_obstacles.size(); i++) {
-        //     const int id = i * 4;
-        //     const ObstacleDot& obj = solver.dot_obstacles[i];
-        //     const float obj_rad = obj.radius;
-        //     sf::Color   color   = obj.color;
-        //     dot_va[id    ].position = obj.position + sf::Vector2f{-obj_rad, -obj_rad};
-        //     dot_va[id + 1].position = obj.position + sf::Vector2f{ obj_rad, -obj_rad};
-        //     dot_va[id + 2].position = obj.position + sf::Vector2f{ obj_rad,  obj_rad};
-        //     dot_va[id + 3].position = obj.position + sf::Vector2f{-obj_rad,  obj_rad}; 
-
-        //     dot_va[id    ].texCoords = {0.0f, 0.0f};
-        //     dot_va[id + 1].texCoords = {tex_size, 0.0f};
-        //     dot_va[id + 2].texCoords = {tex_size, tex_size};
-        //     dot_va[id + 3].texCoords = {0.0f, tex_size};
-            
-        //     dot_va[id    ].color = color;
-        //     dot_va[id + 1].color = color;
-        //     dot_va[id + 2].color = color;
-        //     dot_va[id + 3].color = color;
-        // }
-
-        // box_va.resize(solver.box_obstacles.size() * 4);
-        // for (int i = 0; i < solver.box_obstacles.size(); i++) {
-        //     const int id = i * 4;
-        //     const ObstacleBox& obj = solver.box_obstacles[i];
-        //     const sf::Vector2f size = obj.dimensions * 0.5f;
-        //     sf::Color         color = obj.color;
-        //     sf::Transform rotation;
-        //     rotation.rotate(obj.rotation);
-        //     box_va[id    ].position = obj.position + rotation.transformPoint(-size.x, -size.y);
-        //     box_va[id + 1].position = obj.position + rotation.transformPoint( size.x, -size.y);
-        //     box_va[id + 2].position = obj.position + rotation.transformPoint( size.x,  size.y);
-        //     box_va[id + 3].position = obj.position + rotation.transformPoint(-size.x,  size.y);
-
-        //     if (obj.breakable) color.a = obj.durability * 255 / obj.total_dur;
-        //     box_va[id    ].color = color;
-        //     box_va[id + 1].color = color;
-        //     box_va[id + 2].color = color;
-        //     box_va[id + 3].color = color;
-        // }
     }
 
     // Draw quadtree node boundaries recursively

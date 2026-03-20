@@ -62,7 +62,7 @@ int main()
     constexpr float RADIUS = 2.0f;
     
     const std::string COLLISION_TYPE = "GRID"; //GRID or QUADTREE 
-    
+    const std::string SIMULATION_TYPE = "PARTICLE"; // PARTICLE or ELECTRIC 
     unsigned int SPAWNPOINTS = 10;
 
     bool showDebugGrid = true;  // Toggle grid visualization
