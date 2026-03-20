@@ -1,3 +1,6 @@
+#ifndef ESOLVER_HPP
+#define ESOLVER_HPP
+
 #include "grid.hpp"
 #include <random>
 #include <cmath>
@@ -9,7 +12,7 @@ struct ESolver
 	int W = 600;
 	int H = 600;
 
-	constexpr int substeps = 8;
+	static constexpr int substeps = 8;
 
 	
 	std::vector<GridCell*> active;
@@ -61,7 +64,7 @@ struct ESolver
 	{
 		static std::random_device rd;
 		static std::mt19937 rng(rd());
-		static std::uniform_real_distribution<int> dist(3, 10);
+		static std::uniform_int_distribution<int> dist(3, 10);
 		
 		// select a random radius between 3 and 10 for the zap
 		int radius = dist(rng);
@@ -275,7 +278,7 @@ struct ESolver
 	}
 
 
-	std::vector<GridCell> getGrid() const
+	std::vector<std::vector<GridCell>> getGrid() const
 	{
 		return grid;
 	}
@@ -290,3 +293,5 @@ struct ESolver
 
 
 };
+
+#endif // ESOLVER_HPP

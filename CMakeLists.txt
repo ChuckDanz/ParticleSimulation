@@ -30,3 +30,7 @@ FetchContent_MakeAvailable(SFML)
 add_executable(main main.cpp particle.cpp solver.cpp Vec2.hpp renderer.hpp quadtree.cpp quadtree.hpp thread.hpp grid.hpp ESolver.hpp)
 target_compile_features(main PRIVATE cxx_std_17)
 target_link_libraries(main PRIVATE SFML::Graphics)
+
+add_executable(electric main_electric.cpp Vec2.hpp grid.hpp Esolver.hpp ERenderer.hpp)
+target_compile_features(electric PRIVATE cxx_std_17)
+target_link_libraries(electric PRIVATE SFML::Graphics)
